@@ -34,3 +34,6 @@ pnpm export examples/ppets_70
 pnpm build
 # 输出在 apps/viewer/dist，可部署到 GitHub Pages / Cloudflare Pages
 ```
+
+## ‌致谢
+[@聿聿](https://github.com/WhY15w)

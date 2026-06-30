@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, ref } from "vue";
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import { useSwfLoader } from "./composables/useSwfLoader";
 import { useViewerSettings } from "./composables/useViewerSettings";
 
@@ -32,6 +32,22 @@ const {
 const dragOver = ref(false);
 const fps = ref(0);
 const frameInfo = ref("-");
+const showInfoMenu = ref(false);
+const infoMenuRef = ref<HTMLElement | null>(null);
+
+function toggleInfoMenu(e: MouseEvent) {
+  e.stopPropagation();
+  showInfoMenu.value = !showInfoMenu.value;
+}
+
+function onDocClick(e: MouseEvent) {
+  if (!showInfoMenu.value) return;
+  const el = infoMenuRef.value;
+  if (el && !el.contains(e.target as Node)) showInfoMenu.value = false;
+}
+
+onMounted(() => document.addEventListener("click", onDocClick));
+onUnmounted(() => document.removeEventListener("click", onDocClick));
 
 function onDrop(e: DragEvent) {
   dragOver.value = false;
@@ -69,7 +85,44 @@ function onMaterialInput(e: Event) {
 <template>
   <div class="app">
     <header class="header">
-      <h1>赛尔号精灵动画查看器</h1>
+      <div class="header-brand">
+        <div class="header-title-row">
+          <h1>坚果的赛尔号精灵动画查看器</h1>
+          <div ref="infoMenuRef" class="info-menu">
+            <button
+              type="button"
+              class="info-btn"
+              aria-label="关于与联系方式"
+              :aria-expanded="showInfoMenu"
+              @click="toggleInfoMenu"
+            >
+              i
+            </button>
+            <div
+              v-if="showInfoMenu"
+              class="info-popover"
+              role="dialog"
+              aria-label="关于与联系方式"
+            >
+              <a
+                href="https://github.com/Nattsu39/seer-pet-viewer"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub项目链接
+              </a>
+              <a
+                href="https://space.bilibili.com/31797289"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                作者的B站主页
+              </a>
+              <a href="mailto:nattsu39@outlook.com">联系方式（邮箱）</a>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="header-actions">
         <button
           type="button"
@@ -101,7 +154,11 @@ function onMaterialInput(e: Event) {
             @change="onFileInput"
           />
         </label>
-        <label class="btn" :class="{ disabled: !clip }" title="可选：导入游戏材质包">
+        <label
+          class="btn"
+          :class="{ disabled: !clip }"
+          title="可选：导入游戏材质包"
+        >
           导入材质
           <input
             type="file"
@@ -125,7 +182,9 @@ function onMaterialInput(e: Event) {
       <p v-if="loading">正在解析…</p>
       <template v-else>
         <p class="drop-title">拖放 <code>ppets_*</code> bundle 到此处</p>
-        <p class="drop-hint">或点击上方按钮选择文件；支持预转换 <code>.swfclip</code> 目录</p>
+        <p class="drop-hint">
+          或点击上方按钮选择文件；支持预转换 <code>.swfclip</code> 目录
+        </p>
         <p v-if="error" class="error">{{ error }}</p>
       </template>
     </div>
@@ -178,10 +237,84 @@ function onMaterialInput(e: Event) {
   flex-wrap: wrap;
 }
 
+.header-brand {
+  display: flex;
+  align-items: center;
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .header h1 {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 600;
+}
+
+.info-menu {
+  position: relative;
+}
+
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.info-btn:hover,
+.info-btn[aria-expanded="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.info-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.info-popover a {
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.info-popover a:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .header-actions {
@@ -228,7 +361,9 @@ function onMaterialInput(e: Event) {
   border: 2px dashed var(--border);
   border-radius: 12px;
   color: var(--muted);
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .dropzone.dragover {
