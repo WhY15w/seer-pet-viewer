@@ -4,7 +4,10 @@ export {
   swfClipDataToJson,
   extractPetId,
 } from "./clip-data.js";
-export { MaterialResolver } from "./material.js";
+export {
+  MaterialResolver,
+  SHARED_SWF_MATERIAL_BUNDLE_NAME,
+} from "./material.js";
 export * from "./types.js";
 export * from "./mesh.js";
 export * from "./material.js";

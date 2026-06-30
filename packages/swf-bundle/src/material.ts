@@ -135,6 +135,25 @@ export class MaterialResolver {
     this.warnings = [];
     return w;
   }
+
+  get size(): number {
+    return this.byPathId.size;
+  }
+
+  snapshot(): Record<string, SwfMaterialState> {
+    return Object.fromEntries(this.byPathId);
+  }
+
+  restore(snapshot: Record<string, SwfMaterialState>): void {
+    this.byPathId.clear();
+    for (const [pathId, state] of Object.entries(snapshot)) {
+      this.byPathId.set(pathId, state);
+    }
+  }
 }
+
+/** 赛尔 PetAnimPackage 内 FlashTools 共享 SWF 材质 bundle 文件名 */
+export const SHARED_SWF_MATERIAL_BUNDLE_NAME =
+  "petanimpackage_share_assets_flashtools_resources_materials_generated.bundle";
 
 export const NORMAL_MATERIAL = createMaterialState("normal");

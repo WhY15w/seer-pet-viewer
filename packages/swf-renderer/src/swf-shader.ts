@@ -70,10 +70,39 @@ const swfGrabBitGl = {
   },
 };
 
+const swfMaskBitGl = {
+  name: "swf-mask-bit",
+  vertex: {
+    header: /* glsl */ `
+      in vec4 aMulColor;
+      out float vMaskAlpha;
+    `,
+    start: /* glsl */ `
+      vMaskAlpha = aMulColor.a;
+    `,
+  },
+  fragment: {
+    header: /* glsl */ `
+      in float vMaskAlpha;
+    `,
+    main: /* glsl */ `
+      outColor = vec4(1.0, 1.0, 1.0, 1.0);
+    `,
+  },
+};
+
 let glProgramNormal: GlProgram | null = null;
 let glProgramGrab: GlProgram | null = null;
+let glProgramMask: GlProgram | null = null;
 
-function getGlProgram(grab: boolean): GlProgram {
+function getGlProgram(grab: boolean, mask = false): GlProgram {
+  if (mask) {
+    glProgramMask ??= compileHighShaderGlProgram({
+      name: "swf-mask-shader",
+      bits: [localUniformBitGl, textureBitGl, swfMaskBitGl, roundPixelsBitGl],
+    });
+    return glProgramMask;
+  }
   if (grab) {
     glProgramGrab ??= compileHighShaderGlProgram({
       name: "swf-grab-shader",
@@ -92,6 +121,7 @@ export function createSwfShader(
   texture: Texture,
   grab: boolean,
   tint: [number, number, number, number],
+  mask = false,
 ): Shader {
   const swfUniforms = new UniformGroup({
     uTint: { value: new Float32Array(tint), type: "vec4<f32>" },
@@ -99,7 +129,7 @@ export function createSwfShader(
   });
 
   return new Shader({
-    glProgram: getGlProgram(grab),
+    glProgram: getGlProgram(grab, mask),
     resources: {
       localUniforms: new UniformGroup({
         uTransformMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
@@ -129,7 +159,19 @@ export function updateSwfShaderResources(
   grab: boolean,
   grabBlend?: SwfBlendMode,
   grabTexture?: Texture,
+  mask = false,
 ): void {
+  if (mask) {
+    const textureUniforms = shader.resources.textureUniforms as UniformGroup<{
+      uTextureMatrix: { value: Matrix; type: "mat3x3<f32>" };
+    }>;
+    textureUniforms.uniforms.uTextureMatrix.copyFrom(texture.textureMatrix.mapCoord);
+    textureUniforms.update();
+    shader.resources.uTexture = texture.source;
+    shader.resources.uSampler = texture.source.style;
+    return;
+  }
+
   const swfUniforms = shader.resources.swfUniforms as UniformGroup<{
     uTint: { value: Float32Array; type: "vec4<f32>" };
     uGrabMode?: { value: number; type: "i32" };

@@ -129,6 +129,18 @@ export async function parseBundle(
   return { ...rest, atlas };
 }
 
+/** 在已加载共享材质后，复用现有图集重新解析 mesh 材质 */
+export async function reparseSwfClip(
+  data: ArrayBuffer | Uint8Array,
+  fileName: string,
+  resolver: MaterialResolver,
+  atlas: ImageBitmap,
+): Promise<SwfClipData> {
+  const core = await parseBundleCore(data, fileName, resolver);
+  const { atlasPixels: _pixels, ...rest } = core;
+  return { ...rest, atlas };
+}
+
 export async function loadMaterialBundle(
   buffer: ArrayBuffer,
   resolver: MaterialResolver,

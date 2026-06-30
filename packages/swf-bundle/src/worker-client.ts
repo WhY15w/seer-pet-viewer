@@ -1,4 +1,4 @@
-import type { SwfClipData, SwfClipJson } from "./types.js";
+import type { SwfClipData, SwfClipJson, SwfMaterialState } from "./types.js";
 import { atlasPixelsToBitmap } from "./atlas.js";
 import { loadSwfClipPackage } from "./clip-data.js";
 
@@ -44,12 +44,13 @@ function getWorker(): Worker {
 export function parseBundleInWorker(
   buffer: ArrayBuffer,
   fileName: string,
+  materials?: Record<string, SwfMaterialState>,
 ): Promise<SwfClipData> {
   const id = ++requestId;
   const copy = buffer.slice(0);
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    getWorker().postMessage({ id, buffer: copy, fileName }, [copy]);
+    getWorker().postMessage({ id, buffer: copy, fileName, materials }, [copy]);
   });
 }
 

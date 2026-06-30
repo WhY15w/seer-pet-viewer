@@ -4,6 +4,7 @@ import {
   parseBundleInWorker,
   loadSwfClipPackage,
   MaterialResolver,
+  SHARED_SWF_MATERIAL_BUNDLE_NAME,
   type SwfClipJson,
 } from "@seer/swf-bundle";
 import type { SpineClipData } from "@seer/spine-bundle";
@@ -24,7 +25,16 @@ export function usePetLoader() {
   const pet = ref<PetClip | null>(null);
   const parseMs = ref(0);
   const warnings = ref<string[]>([]);
+  const materialCount = ref(0);
   const materialResolver = new MaterialResolver();
+
+  let lastSwfBuffer: ArrayBuffer | null = null;
+  let lastSwfFileName = "";
+
+  function materialSnapshot() {
+    const snapshot = materialResolver.snapshot();
+    return Object.keys(snapshot).length > 0 ? snapshot : undefined;
+  }
 
   async function loadBundleFile(file: File) {
     loading.value = true;
@@ -42,12 +52,20 @@ export function usePetLoader() {
       }
 
       if (kind === "spine") {
+        lastSwfBuffer = null;
+        lastSwfFileName = "";
         const clip = await parseSpineBundleInWorker(buffer.slice(0), file.name);
         pet.value = { type: "spine", clip };
       } else {
-        const clip = await parseBundleInWorker(buffer.slice(0), file.name);
+        lastSwfBuffer = buffer.slice(0);
+        lastSwfFileName = file.name;
+        const clip = await parseBundleInWorker(
+          lastSwfBuffer,
+          lastSwfFileName,
+          materialSnapshot(),
+        );
         pet.value = { type: "swf", clip };
-        warnings.value = clip.materialWarnings;
+        warnings.value = buildSwfWarnings(clip.materialWarnings);
       }
       parseMs.value = Math.round(performance.now() - t0);
     } catch (e) {
@@ -58,9 +76,23 @@ export function usePetLoader() {
     }
   }
 
+  function buildSwfWarnings(parseWarnings: string[]): string[] {
+    const out = [...parseWarnings];
+    if (materialCount.value > 0) {
+      out.unshift(`已加载 ${materialCount.value} 个 SWF 共享材质`);
+    } else if (parseWarnings.some((w) => w.includes("外部文件"))) {
+      out.unshift(
+        `缺少 SWF 共享材质包，请导入 ${SHARED_SWF_MATERIAL_BUNDLE_NAME}`,
+      );
+    }
+    return out;
+  }
+
   async function loadSwfClipDir(files: FileList | File[]) {
     loading.value = true;
     error.value = null;
+    lastSwfBuffer = null;
+    lastSwfFileName = "";
     const t0 = performance.now();
     try {
       const list = Array.from(files);
@@ -85,6 +117,8 @@ export function usePetLoader() {
   async function loadSpineClipDir(files: FileList | File[]) {
     loading.value = true;
     error.value = null;
+    lastSwfBuffer = null;
+    lastSwfFileName = "";
     const t0 = performance.now();
     try {
       const list = Array.from(files);
@@ -129,14 +163,45 @@ export function usePetLoader() {
   }
 
   async function loadMaterialBundleFile(file: File) {
-    if (pet.value?.type !== "swf") return;
-    const buffer = await file.arrayBuffer();
-    const { loadMaterialBundle } = await import("@seer/swf-bundle/parse");
-    const { count, warnings: w } = await loadMaterialBundle(
-      buffer,
-      materialResolver,
-    );
-    warnings.value = [...warnings.value, `已导入 ${count} 个材质`, ...w];
+    loading.value = true;
+    error.value = null;
+    const t0 = performance.now();
+    try {
+      const buffer = await file.arrayBuffer();
+      const { loadMaterialBundle, reparseSwfClip } = await import(
+        "@seer/swf-bundle/parse"
+      );
+      const { count, warnings: w } = await loadMaterialBundle(
+        buffer,
+        materialResolver,
+      );
+      materialCount.value = materialResolver.size;
+
+      if (pet.value?.type === "swf" && lastSwfBuffer) {
+        const clip = await reparseSwfClip(
+          lastSwfBuffer,
+          lastSwfFileName,
+          materialResolver,
+          pet.value.clip.atlas,
+        );
+        pet.value = { type: "swf", clip };
+        warnings.value = [
+          `已导入 ${count} 个 SWF 共享材质，并已重新解析当前精灵`,
+          ...w,
+          ...clip.materialWarnings,
+        ];
+        parseMs.value = Math.round(performance.now() - t0);
+      } else {
+        warnings.value = [
+          `已导入 ${count} 个 SWF 共享材质，导入 ppets_* bundle 后将自动应用`,
+          ...w,
+        ];
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
   }
 
   function reset() {
@@ -144,6 +209,8 @@ export function usePetLoader() {
     error.value = null;
     warnings.value = [];
     parseMs.value = 0;
+    lastSwfBuffer = null;
+    lastSwfFileName = "";
   }
 
   return {
@@ -152,6 +219,8 @@ export function usePetLoader() {
     pet,
     parseMs,
     warnings,
+    materialCount,
+    sharedMaterialBundleName: SHARED_SWF_MATERIAL_BUNDLE_NAME,
     loadBundleFile,
     loadSwfClipDir,
     loadSpineClipDir,

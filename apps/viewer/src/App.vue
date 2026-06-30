@@ -13,6 +13,8 @@ const {
   pet,
   parseMs,
   warnings,
+  materialCount,
+  sharedMaterialBundleName,
   loadBundleFile,
   loadSwfClipDir,
   loadSpineClipDir,
@@ -91,7 +93,7 @@ function onSpineClipInput(e: Event) {
 function onMaterialInput(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
-  if (file) loadMaterialBundle(file);
+  if (file) void loadMaterialBundle(file);
   input.value = "";
 }
 </script>
@@ -180,16 +182,10 @@ function onMaterialInput(e: Event) {
         </label>
         <label
           class="btn"
-          :class="{ disabled: !pet || pet.type !== 'swf' }"
-          title="可选：导入游戏材质包"
+          :title="`导入 FlashTools 共享 SWF 材质：${sharedMaterialBundleName}`"
         >
-          导入材质
-          <input
-            type="file"
-            hidden
-            :disabled="!pet || pet.type !== 'swf'"
-            @change="onMaterialInput"
-          />
+          导入共享材质
+          <input type="file" hidden accept=".bundle" @change="onMaterialInput" />
         </label>
         <button v-if="pet" @click="reset">关闭</button>
       </div>
@@ -209,6 +205,10 @@ function onMaterialInput(e: Event) {
         <p class="drop-hint">
           或点击上方按钮选择文件；支持预转换 <code>.swfclip</code> / <code>.spineclip</code> 目录
         </p>
+        <p class="drop-hint">
+          SWF 精灵需额外导入共享材质
+          <code>{{ sharedMaterialBundleName }}</code>
+        </p>
         <p v-if="error" class="error">{{ error }}</p>
       </template>
     </div>
@@ -222,6 +222,7 @@ function onMaterialInput(e: Event) {
         </span>
         <span v-else>{{ pet.clip.animations.length }} 个动画</span>
         <span v-if="pet.type === 'swf'">{{ pet.clip.frameRate }} fps</span>
+        <span v-if="materialCount > 0">共享材质 {{ materialCount }}</span>
         <span>解析 {{ parseMs }} ms</span>
         <span>{{ frameInfo }}</span>
         <span>渲染 {{ fps }} fps</span>
