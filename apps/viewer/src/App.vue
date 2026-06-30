@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
-import { useSwfLoader } from "./composables/useSwfLoader";
+import { usePetLoader } from "./composables/usePetLoader";
 import { useViewerSettings } from "./composables/useViewerSettings";
 
 const PetViewer = defineAsyncComponent(
@@ -10,14 +10,15 @@ const PetViewer = defineAsyncComponent(
 const {
   loading,
   error,
-  clip,
+  pet,
   parseMs,
   warnings,
   loadBundleFile,
   loadSwfClipDir,
+  loadSpineClipDir,
   loadMaterialBundle,
   reset,
-} = useSwfLoader();
+} = usePetLoader();
 
 const {
   toolbarPosition,
@@ -60,9 +61,16 @@ function onDrop(e: DragEvent) {
 async function handleFiles(files: FileList) {
   const arr = Array.from(files);
   const meta = arr.find((f) => f.name === "meta.json");
-  if (meta && arr.some((f) => f.name === "atlas.png")) {
-    await loadSwfClipDir(arr);
-    return;
+  if (meta) {
+    const metaJson = JSON.parse(await meta.text()) as { kind?: string };
+    if (metaJson.kind === "spine") {
+      await loadSpineClipDir(arr);
+      return;
+    }
+    if (arr.some((f) => f.name === "atlas.png")) {
+      await loadSwfClipDir(arr);
+      return;
+    }
   }
   const bundle = arr.find((f) => !f.name.endsWith(".json"));
   if (bundle) await loadBundleFile(bundle);
@@ -71,6 +79,12 @@ async function handleFiles(files: FileList) {
 function onFileInput(e: Event) {
   const input = e.target as HTMLInputElement;
   if (input.files?.length) handleFiles(input.files);
+  input.value = "";
+}
+
+function onSpineClipInput(e: Event) {
+  const input = e.target as HTMLInputElement;
+  if (input.files?.length) void loadSpineClipDir(input.files);
   input.value = "";
 }
 
@@ -154,25 +168,35 @@ function onMaterialInput(e: Event) {
             @change="onFileInput"
           />
         </label>
+        <label class="btn">
+          导入 .spineclip
+          <input
+            type="file"
+            hidden
+            multiple
+            webkitdirectory
+            @change="onSpineClipInput"
+          />
+        </label>
         <label
           class="btn"
-          :class="{ disabled: !clip }"
+          :class="{ disabled: !pet || pet.type !== 'swf' }"
           title="可选：导入游戏材质包"
         >
           导入材质
           <input
             type="file"
             hidden
-            :disabled="!clip"
+            :disabled="!pet || pet.type !== 'swf'"
             @change="onMaterialInput"
           />
         </label>
-        <button v-if="clip" @click="reset">关闭</button>
+        <button v-if="pet" @click="reset">关闭</button>
       </div>
     </header>
 
     <div
-      v-if="!clip"
+      v-if="!pet"
       class="dropzone"
       :class="{ dragover: dragOver }"
       @dragover.prevent="dragOver = true"
@@ -181,9 +205,9 @@ function onMaterialInput(e: Event) {
     >
       <p v-if="loading">正在解析…</p>
       <template v-else>
-        <p class="drop-title">拖放 <code>ppets_*</code> bundle 到此处</p>
+        <p class="drop-title">拖放 <code>ppets_*</code> 或 <code>pskilltimeline_spines_*</code> bundle 到此处</p>
         <p class="drop-hint">
-          或点击上方按钮选择文件；支持预转换 <code>.swfclip</code> 目录
+          或点击上方按钮选择文件；支持预转换 <code>.swfclip</code> / <code>.spineclip</code> 目录
         </p>
         <p v-if="error" class="error">{{ error }}</p>
       </template>
@@ -191,9 +215,13 @@ function onMaterialInput(e: Event) {
 
     <template v-else>
       <div class="status-bar">
-        <span>精灵 #{{ clip.petId }}</span>
-        <span>{{ clip.atlasWidth }}×{{ clip.atlasHeight }}</span>
-        <span>{{ clip.frameRate }} fps</span>
+        <span>精灵 #{{ pet.clip.petId }}</span>
+        <span>{{ pet.type === "swf" ? "SWF" : "Spine" }}</span>
+        <span v-if="pet.type === 'swf'">
+          {{ pet.clip.atlasWidth }}×{{ pet.clip.atlasHeight }}
+        </span>
+        <span v-else>{{ pet.clip.animations.length }} 个动画</span>
+        <span v-if="pet.type === 'swf'">{{ pet.clip.frameRate }} fps</span>
         <span>解析 {{ parseMs }} ms</span>
         <span>{{ frameInfo }}</span>
         <span>渲染 {{ fps }} fps</span>
@@ -205,7 +233,7 @@ function onMaterialInput(e: Event) {
 
       <Suspense>
         <PetViewer
-          :clip="clip"
+          :pet="pet"
           :toolbar-position="toolbarPosition"
           @frame-change="(f, t) => (frameInfo = `帧 ${f + 1}/${t}`)"
           @fps-update="(v) => (fps = v)"

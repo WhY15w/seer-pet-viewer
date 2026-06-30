@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount, computed } from "vue";
 import { SwfPlayer } from "@seer/swf-renderer";
+import { SpinePlayer } from "@seer/spine-renderer";
 import type { SwfClipData } from "@seer/swf-bundle";
+import {
+  SPINE_SEQUENCE_LABELS,
+  type SpineClipData,
+} from "@seer/spine-bundle";
+import type { PetClip } from "../composables/usePetLoader";
 import type { ToolbarPosition } from "../composables/useViewerSettings";
 import {
   getCanvasBackgroundColor,
@@ -10,7 +16,7 @@ import {
 
 const props = withDefaults(
   defineProps<{
-    clip: SwfClipData;
+    pet: PetClip;
     toolbarPosition?: ToolbarPosition;
   }>(),
   { toolbarPosition: "bottom" },
@@ -24,39 +30,67 @@ const emit = defineEmits<{
 const { resolvedTheme } = useViewerSettings();
 
 const canvasHost = ref<HTMLElement | null>(null);
-const player = ref<SwfPlayer | null>(null);
-const currentSequence = ref(props.clip.sequences[0]?.name ?? "standby");
+const swfPlayer = ref<SwfPlayer | null>(null);
+const spinePlayer = ref<SpinePlayer | null>(null);
+const currentSequence = ref("");
 const playing = ref(true);
 const loop = ref(true);
 const speed = ref(1);
 const currentFrame = ref(0);
 const frameCount = ref(0);
 
-const sequenceOptions = computed(() =>
-  props.clip.sequences.map((s) => ({
-    value: s.name,
-    label: s.name,
-    frames: s.frames.length,
-  })),
-);
+const sequenceOptions = computed(() => {
+  if (props.pet.type === "swf") {
+    return props.pet.clip.sequences.map((s) => ({
+      value: s.name,
+      label: s.name,
+      frames: s.frames.length,
+    }));
+  }
+  return props.pet.clip.animations.map((name) => ({
+    value: name,
+    label: SPINE_SEQUENCE_LABELS[name] ?? name,
+    frames: 0,
+  }));
+});
 
 let fpsFrames = 0;
 let fpsLast = performance.now();
 
+type PlayerControls = {
+  play(): void;
+  pause(): void;
+  setLoop(loop: boolean): void;
+  setSpeed(speed: number): void;
+  fitToView(): void;
+};
+
+function activePlayer(): PlayerControls | null {
+  return props.pet.type === "swf"
+    ? (swfPlayer.value as PlayerControls | null)
+    : (spinePlayer.value as PlayerControls | null);
+}
+
 function syncFrameCount(seqName = currentSequence.value) {
-  const seq = props.clip.sequences.find((s) => s.name === seqName);
-  frameCount.value = seq?.frames.length ?? 0;
+  if (props.pet.type === "swf") {
+    const seq = props.pet.clip.sequences.find((s) => s.name === seqName);
+    frameCount.value = seq?.frames.length ?? 0;
+    return;
+  }
+  frameCount.value = frameCount.value || 1;
 }
 
 function syncPlayerBackground() {
-  player.value?.setBackgroundColor(getCanvasBackgroundColor());
+  const bg = getCanvasBackgroundColor();
+  swfPlayer.value?.setBackgroundColor(bg);
+  spinePlayer.value?.setBackgroundColor(bg);
 }
 
-async function initPlayer() {
-  if (!canvasHost.value) return;
-  player.value?.destroy();
+async function initSwfPlayer(clip: SwfClipData) {
+  spinePlayer.value?.destroy();
+  spinePlayer.value = null;
 
-  currentSequence.value = props.clip.sequences[0]?.name ?? "standby";
+  currentSequence.value = clip.sequences[0]?.name ?? "standby";
   syncFrameCount();
   currentFrame.value = 0;
 
@@ -73,7 +107,7 @@ async function initPlayer() {
       fpsLast = now;
     }
   });
-  await p.mount(canvasHost.value, props.clip, {
+  await p.mount(canvasHost.value!, clip, {
     backgroundColor: getCanvasBackgroundColor(),
   });
   p.enablePan();
@@ -81,13 +115,62 @@ async function initPlayer() {
   p.setLoop(loop.value);
   p.setSpeed(speed.value);
   if (playing.value) p.play();
-  player.value = p;
+  swfPlayer.value = p;
+}
+
+async function initSpinePlayer(clip: SpineClipData) {
+  swfPlayer.value?.destroy();
+  swfPlayer.value = null;
+
+  const defaultAnim =
+    clip.animations.find((a) => a === "await" || a === "standby") ??
+    clip.animations[0] ??
+    "await";
+  currentSequence.value = defaultAnim;
+  currentFrame.value = 0;
+
+  const p = new SpinePlayer();
+  p.setOnFrameChange((frame, total) => {
+    currentFrame.value = frame;
+    frameCount.value = total;
+    emit("frameChange", frame, total);
+    fpsFrames++;
+    const now = performance.now();
+    if (now - fpsLast >= 1000) {
+      emit("fpsUpdate", fpsFrames);
+      fpsFrames = 0;
+      fpsLast = now;
+    }
+  });
+  await p.mount(canvasHost.value!, clip, {
+    backgroundColor: getCanvasBackgroundColor(),
+  });
+  p.enablePan();
+  p.setSequence(currentSequence.value);
+  p.setLoop(loop.value);
+  p.setSpeed(speed.value);
+  if (playing.value) p.play();
+  spinePlayer.value = p;
+}
+
+async function initPlayer() {
+  if (!canvasHost.value) return;
+  swfPlayer.value?.destroy();
+  spinePlayer.value?.destroy();
+  swfPlayer.value = null;
+  spinePlayer.value = null;
+
+  if (props.pet.type === "swf") {
+    await initSwfPlayer(props.pet.clip);
+  } else {
+    await initSpinePlayer(props.pet.clip);
+  }
 }
 
 watch(
-  [() => props.clip, canvasHost],
-  ([clip, host]) => {
-    if (!clip || !host) return;
+  [() => props.pet, canvasHost],
+  ([pet, host]) => {
+    if (!pet || !host) return;
     void initPlayer();
   },
   { flush: "post", immediate: true },
@@ -99,32 +182,47 @@ watch(resolvedTheme, () => {
 
 watch(currentSequence, (name) => {
   syncFrameCount(name);
-  player.value?.setSequence(name);
-  if (playing.value) player.value?.play();
+  if (props.pet.type === "swf") {
+    swfPlayer.value?.setSequence(name);
+  } else {
+    spinePlayer.value?.setSequence(name);
+  }
+  if (playing.value) activePlayer()?.play();
 });
 
-watch(playing, (v) => (v ? player.value?.play() : player.value?.pause()));
-watch(loop, (v) => player.value?.setLoop(v));
-watch(speed, (v) => player.value?.setSpeed(v));
+watch(playing, (v) => (v ? activePlayer()?.play() : activePlayer()?.pause()));
+watch(loop, (v) => activePlayer()?.setLoop(v));
+watch(speed, (v) => activePlayer()?.setSpeed(v));
 
 function togglePlay() {
   playing.value = !playing.value;
 }
 
 function stepFrame(delta: number) {
-  player.value?.gotoFrame(currentFrame.value + delta);
+  if (props.pet.type === "swf") {
+    swfPlayer.value?.gotoFrame(currentFrame.value + delta);
+  } else {
+    spinePlayer.value?.gotoFrame(currentFrame.value + delta);
+  }
 }
 
 function onSeek(e: Event) {
   const v = Number((e.target as HTMLInputElement).value);
-  player.value?.gotoFrame(v);
+  if (props.pet.type === "swf") {
+    swfPlayer.value?.gotoFrame(v);
+  } else {
+    spinePlayer.value?.gotoFrame(v);
+  }
 }
 
 function fitView() {
-  player.value?.fitToView();
+  activePlayer()?.fitToView();
 }
 
-onBeforeUnmount(() => player.value?.destroy());
+onBeforeUnmount(() => {
+  swfPlayer.value?.destroy();
+  spinePlayer.value?.destroy();
+});
 
 defineExpose({ fitView });
 </script>
@@ -143,7 +241,7 @@ defineExpose({ fitView });
             @click="currentSequence = seq.value"
           >
             {{ seq.label }}
-            <span class="count">{{ seq.frames }}</span>
+            <span v-if="pet.type === 'swf'" class="count">{{ seq.frames }}</span>
           </button>
         </div>
 

@@ -10,6 +10,12 @@ importers:
 
   apps/viewer:
     dependencies:
+      '@seer/spine-bundle':
+        specifier: workspace:*
+        version: link:../../packages/spine-bundle
+      '@seer/spine-renderer':
+        specifier: workspace:*
+        version: link:../../packages/spine-renderer
       '@seer/swf-bundle':
         specifier: workspace:*
         version: link:../../packages/swf-bundle
@@ -35,6 +41,44 @@ importers:
       vue-tsc:
         specifier: ^2.2.10
         version: 2.2.12(typescript@5.9.3)
+
+  packages/spine-bundle:
+    dependencies:
+      '@arkntools/unity-js':
+        specifier: ^5.1.0
+        version: 5.2.0
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
+    devDependencies:
+      '@esotericsoftware/spine-core':
+        specifier: 4.0.31
+        version: 4.0.31
+      happy-dom:
+        specifier: ^17.4.7
+        version: 17.6.3
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(happy-dom@17.6.3)
+
+  packages/spine-renderer:
+    dependencies:
+      '@esotericsoftware/spine-core':
+        specifier: 4.0.31
+        version: 4.0.31
+      '@esotericsoftware/spine-webgl':
+        specifier: 4.0.31
+        version: 4.0.31
+      '@seer/spine-bundle':
+        specifier: workspace:*
+        version: link:../spine-bundle
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/swf-bundle:
     dependencies:
@@ -260,6 +304,12 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@esotericsoftware/spine-core@4.0.31':
+    resolution: {integrity: sha512-SiP87Xudw8qfg6t1Gv4NVoqP+Tw0eaCj1ApS+GXLdCvb/i5FNQevqEt4RgEvD8j1vJy+WVriPLMJYQSdaSehgA==}
+
+  '@esotericsoftware/spine-webgl@4.0.31':
+    resolution: {integrity: sha512-G6j31+caQJck/4UN8TVaTKnU0RPysI7ECMkCxcXBGsTmv98m0O5Wx18YgeIf//Bg8KAO+mZ/DmwzeScwGG9HPA==}
 
   '@jimp/core@1.6.1':
     resolution: {integrity: sha512-+BoKC5G6hkrSy501zcJ2EpfnllP+avPevcBfRcZe/CW+EwEfY6X1EZ8QWyT7NpDIvEEJb1fdJnMMfUnFkxmw9A==}
@@ -1127,6 +1177,12 @@ snapshots:
 
   '@esbuild/win32-x64@0.25.12':
     optional: true
+
+  '@esotericsoftware/spine-core@4.0.31': {}
+
+  '@esotericsoftware/spine-webgl@4.0.31':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.0.31
 
   '@jimp/core@1.6.1':
     dependencies:

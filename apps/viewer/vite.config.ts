@@ -17,6 +17,11 @@ export default defineConfig(({ command }) => ({
       ),
       "@seer/swf-bundle": resolve(__dirname, "../../packages/swf-bundle/src"),
       "@seer/swf-renderer": resolve(__dirname, "../../packages/swf-renderer/src"),
+      "@seer/spine-bundle": resolve(__dirname, "../../packages/spine-bundle/src"),
+      "@seer/spine-renderer": resolve(
+        __dirname,
+        "../../packages/spine-renderer/src",
+      ),
       buffer: "buffer/",
       [resolve(unityJsRoot, "utils/aes.js")]: resolve(
         unityJsRoot,
