@@ -1,0 +1,8 @@
+# Cloudflare Pages / GitHub Pages: build output = apps/viewer/dist
+
+[build]
+command = "pnpm install && pnpm build"
+publish = "apps/viewer/dist"
+
+[build.environment]
+NODE_VERSION = "22"

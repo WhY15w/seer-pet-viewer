@@ -1,0 +1,17 @@
+{
+  "name": "seer-pet-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @seer/viewer dev",
+    "preview": "pnpm --filter @seer/viewer preview",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "export": "uv run --with UnityPy tools/export_swfclip.py"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.29.2+sha512.bef43fa759d91fd2da4b319a5a0d13ef7a45bb985a3d7342058470f9d2051a3ba8674e629672654686ef9443ad13a82da2beb9eeb3e0221c87b8154fff9d74b8"
+}

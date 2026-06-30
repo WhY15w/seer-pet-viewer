@@ -1,0 +1,4 @@
+[tools]
+node = "lts"
+pnpm = "11"
+uv = "latest"

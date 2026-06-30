@@ -1,0 +1,36 @@
+{
+  "name": "@seer/swf-bundle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./parse": {
+      "types": "./dist/parse.d.ts",
+      "import": "./dist/parse.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@arkntools/unity-js": "^5.1.0",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "happy-dom": "^17.4.7",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

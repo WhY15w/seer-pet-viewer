@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "noEmit": true,
+    "paths": {
+      "@seer/swf-bundle": ["../../packages/swf-bundle/src"],
+      "@seer/swf-bundle/parse": ["../../packages/swf-bundle/src/parse.ts"],
+      "@seer/swf-renderer": ["../../packages/swf-renderer/src"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "env.d.ts"]
+}
