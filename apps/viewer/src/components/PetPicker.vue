@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import type {
-  PetAnimIndex,
-  PetAnimIndexEntry,
-} from "../lib/pet-anim-index";
-import { loadPetAnimIndex } from "../lib/pet-anim-index";
+import { computed, ref, watch } from "vue";
+import { useVirtualizer } from "@tanstack/vue-virtual";
+import type { PetAnimIndex, PetAnimIndexEntry } from "../lib/pet-anim-index";
 import { isRemoteBundleEnabled } from "../lib/remote-bundle";
+import { usePetAnimIndex } from "../composables/usePetAnimIndex";
+import PetPickerItem from "./PetPickerItem.vue";
 
 const props = defineProps<{
   loading?: boolean;
@@ -16,44 +15,76 @@ const emit = defineEmits<{
   select: [entry: PetAnimIndexEntry, index: PetAnimIndex];
 }>();
 
-const index = ref<PetAnimIndex | null>(null);
-const indexError = ref<string | null>(null);
-const query = ref(props.initialQuery ?? "");
-const kindFilter = ref<"all" | "swf" | "spine">("all");
+const MAX_RESULTS = 200;
+const DEBOUNCE_MS = 150;
 
+const { index, indexError, indexLoading, retryIndexLoad } = usePetAnimIndex();
 const remoteEnabled = isRemoteBundleEnabled();
 
-onMounted(async () => {
-  if (!remoteEnabled) return;
-  try {
-    index.value = await loadPetAnimIndex();
-  } catch (e) {
-    indexError.value = e instanceof Error ? e.message : String(e);
-  }
-});
+const query = ref(props.initialQuery ?? "");
+const debouncedQuery = ref(query.value);
+const kindFilter = ref<"all" | "swf" | "spine">("all");
+const listRef = ref<HTMLElement | null>(null);
 
-const filteredEntries = computed(() => {
-  if (!index.value) return [];
-  const q = query.value.trim();
-  return index.value.entries.filter((entry) => {
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  query,
+  (value) => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debouncedQuery.value = value;
+    }, DEBOUNCE_MS);
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.initialQuery,
+  (value) => {
+    if (value) query.value = value;
+  },
+);
+
+const filteredResult = computed(() => {
+  if (!index.value) return { entries: [] as PetAnimIndexEntry[], truncated: 0 };
+  const q = debouncedQuery.value.trim();
+  if (!q) return { entries: [], truncated: 0 };
+
+  const matched = index.value.entries.filter((entry) => {
     if (kindFilter.value !== "all" && entry.kind !== kindFilter.value) {
       return false;
     }
-    if (!q) return true;
     if (/^\d+$/.test(q)) {
-      return String(entry.id).includes(q);
+      return String(entry.id).startsWith(q);
     }
     return entry.name.toLowerCase().includes(q.toLowerCase());
   });
+
+  const truncated = Math.max(0, matched.length - MAX_RESULTS);
+  return {
+    entries: matched.slice(0, MAX_RESULTS),
+    truncated,
+  };
 });
 
-function kindLabel(kind: PetAnimIndexEntry["kind"]) {
-  return kind === "swf" ? "SWF" : "Spine";
-}
+const filteredEntries = computed(() => filteredResult.value.entries);
+const truncatedCount = computed(() => filteredResult.value.truncated);
+const hasQuery = computed(() => debouncedQuery.value.trim().length > 0);
+const isSearching = computed(
+  () => query.value.trim() !== debouncedQuery.value.trim(),
+);
 
-function variantLabel(entry: PetAnimIndexEntry) {
-  return entry.variant === "small" ? "（小）" : "";
-}
+const virtualizer = useVirtualizer(
+  computed(() => ({
+    count: filteredEntries.value.length,
+    getScrollElement: () => listRef.value,
+    estimateSize: () => 45,
+    overscan: 8,
+  })),
+);
+
+const virtualRows = computed(() => virtualizer.value.getVirtualItems());
 
 function onSelect(entry: PetAnimIndexEntry) {
   if (!index.value || props.loading) return;
@@ -68,8 +99,13 @@ function onSelect(entry: PetAnimIndexEntry) {
       <p v-if="index" class="pet-picker-meta">
         清单版本 {{ index.version }} · {{ index.entries.length }} 条
       </p>
-      <p v-else-if="indexError" class="pet-picker-error">{{ indexError }}</p>
-      <p v-else class="pet-picker-meta">正在加载资源索引…</p>
+      <p v-else-if="indexError" class="pet-picker-error-block">
+        <span class="pet-picker-error">{{ indexError }}</span>
+        <button type="button" class="pet-picker-retry" @click="retryIndexLoad">
+          重试
+        </button>
+      </p>
+      <p v-else-if="indexLoading" class="pet-picker-meta">正在加载资源索引…</p>
     </div>
 
     <div v-if="index" class="pet-picker-controls">
@@ -79,6 +115,7 @@ function onSelect(entry: PetAnimIndexEntry) {
         class="pet-picker-search"
         placeholder="搜索精灵 ID 或名称…"
         :disabled="loading"
+        enterkeyhint="search"
       />
       <div class="pet-picker-filters">
         <button
@@ -111,23 +148,47 @@ function onSelect(entry: PetAnimIndexEntry) {
       </div>
     </div>
 
-    <ul v-if="index" class="pet-picker-list">
-      <li v-if="filteredEntries.length === 0" class="pet-picker-empty">
+    <div v-if="index" class="pet-picker-list-wrap">
+      <p v-if="!hasQuery" class="pet-picker-hint">
+        请输入精灵 ID 进行搜索（支持前缀匹配）
+      </p>
+      <p v-else-if="isSearching" class="pet-picker-hint">搜索中…</p>
+      <p
+        v-else-if="hasQuery && filteredEntries.length === 0"
+        class="pet-picker-empty"
+      >
         没有匹配的资源
-      </li>
-      <li v-for="entry in filteredEntries" :key="entry.name">
-        <button
-          type="button"
-          class="pet-picker-item"
-          :disabled="loading"
-          @click="onSelect(entry)"
+      </p>
+      <div
+        v-else-if="filteredEntries.length > 0"
+        ref="listRef"
+        class="pet-picker-list"
+      >
+        <div
+          class="pet-picker-list-inner"
+          :style="{ height: `${virtualizer.getTotalSize()}px` }"
         >
-          <span class="pet-picker-id">#{{ entry.id }}</span>
-          <span class="pet-picker-name">{{ entry.name }}{{ variantLabel(entry) }}</span>
-          <span class="pet-picker-kind">{{ kindLabel(entry.kind) }}</span>
-        </button>
-      </li>
-    </ul>
+          <div
+            v-for="row in virtualRows"
+            :key="filteredEntries[row.index]!.name"
+            class="pet-picker-row"
+            :style="{
+              height: `${row.size}px`,
+              transform: `translateY(${row.start}px)`,
+            }"
+          >
+            <PetPickerItem
+              :entry="filteredEntries[row.index]!"
+              :disabled="loading"
+              @select="onSelect"
+            />
+          </div>
+        </div>
+      </div>
+      <p v-if="truncatedCount > 0" class="pet-picker-truncated">
+        还有 {{ truncatedCount }} 条结果，请缩小搜索范围
+      </p>
+    </div>
   </section>
 </template>
 
@@ -141,6 +202,9 @@ function onSelect(entry: PetAnimIndexEntry) {
   border-radius: 12px;
   background: var(--panel);
   text-align: left;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .pet-picker-header h2 {
@@ -157,9 +221,29 @@ function onSelect(entry: PetAnimIndexEntry) {
 }
 
 .pet-picker-error {
-  margin: 0;
-  font-size: 0.82rem;
   color: var(--error);
+}
+
+.pet-picker-error-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.pet-picker-error-block .pet-picker-error {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.pet-picker-retry {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 0.82rem;
 }
 
 .pet-picker-controls {
@@ -167,16 +251,18 @@ function onSelect(entry: PetAnimIndexEntry) {
   flex-direction: column;
   gap: 10px;
   margin-top: 12px;
+  flex-shrink: 0;
 }
 
 .pet-picker-search {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 1rem;
+  min-height: 44px;
 }
 
 .pet-picker-filters {
@@ -185,13 +271,14 @@ function onSelect(entry: PetAnimIndexEntry) {
 }
 
 .filter-btn {
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
   font-size: 0.82rem;
   cursor: pointer;
+  min-height: 36px;
 }
 
 .filter-btn.active {
@@ -200,66 +287,63 @@ function onSelect(entry: PetAnimIndexEntry) {
   background: var(--accent-soft);
 }
 
-.pet-picker-list {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  max-height: 240px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.pet-picker-list-wrap {
+  margin-top: 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.pet-picker-empty {
+.pet-picker-hint,
+.pet-picker-empty,
+.pet-picker-truncated {
+  margin: 0;
   padding: 16px;
   text-align: center;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
-.pet-picker-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: center;
-  width: 100%;
+.pet-picker-truncated {
   padding: 8px 12px;
-  border: none;
-  border-bottom: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
+  border-top: 1px solid var(--border);
 }
 
-.pet-picker-item:last-child {
-  border-bottom: none;
+.pet-picker-list {
+  flex: 1;
+  min-height: 120px;
+  max-height: min(50vh, 400px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-.pet-picker-item:hover:not(:disabled) {
-  background: var(--accent-soft);
+.pet-picker-list-inner {
+  position: relative;
+  width: 100%;
 }
 
-.pet-picker-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.pet-picker-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
 }
 
-.pet-picker-id {
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-  font-weight: 600;
-}
+@media (max-width: 768px) {
+  .pet-picker {
+    max-width: none;
+    margin-bottom: 12px;
+    flex: 1;
+  }
 
-.pet-picker-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pet-picker-kind {
-  font-size: 0.75rem;
-  color: var(--muted);
+  .pet-picker-list {
+    max-height: none;
+    flex: 1;
+  }
 }
 </style>

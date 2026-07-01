@@ -46,12 +46,13 @@ export type BundleKind = "swf" | "spine" | "video" | "unknown";
 export const SPINE_SEQUENCE_LABELS: Record<string, string> = {
   await: "待机",
   standby: "待机",
-  attack: "出招",
-  sa: "必杀",
-  cp: "特性",
+  attack: "物攻",
+  sa: "特攻",
+  cp: "属性",
   hited: "受击",
-  appear: "登场",
-  hidemove: "隐藏移动",
+  appear: "出场",
+  transform: "变身",
+  hidemove: "第五技能",
 };
 
 export const SPINE_PREVIEW_FPS = 30;

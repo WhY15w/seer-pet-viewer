@@ -3,10 +3,7 @@ import { ref, watch, onBeforeUnmount, computed } from "vue";
 import { SwfPlayer } from "@seer/swf-renderer";
 import { SpinePlayer } from "@seer/spine-renderer";
 import type { SwfClipData } from "@seer/swf-bundle";
-import {
-  SPINE_SEQUENCE_LABELS,
-  type SpineClipData,
-} from "@seer/spine-bundle";
+import type { SpineClipData } from "@seer/spine-bundle";
 import type { FrameCaptureSource } from "@seer/anim-export";
 import type { PetClip } from "../composables/usePetLoader";
 import type { ToolbarPosition } from "../composables/useViewerSettings";
@@ -15,13 +12,15 @@ import {
   useViewerSettings,
 } from "../composables/useViewerSettings";
 import { useAnimationExport } from "../composables/useAnimationExport";
+import { getAnimationLabel } from "../lib/animation-labels";
 
 const props = withDefaults(
   defineProps<{
     pet: PetClip;
     toolbarPosition?: ToolbarPosition;
+    isMobile?: boolean;
   }>(),
-  { toolbarPosition: "bottom" },
+  { toolbarPosition: "bottom", isMobile: false },
 );
 
 const emit = defineEmits<{
@@ -49,20 +48,29 @@ const loop = ref(true);
 const speed = ref(1);
 const currentFrame = ref(0);
 const frameCount = ref(0);
+const exportExpanded = ref(false);
+const controlsCollapsed = ref(false);
 
 const sequenceOptions = computed(() => {
   if (props.pet.type === "swf") {
     return props.pet.clip.sequences.map((s) => ({
       value: s.name,
-      label: s.name,
+      label: getAnimationLabel(s.name),
       frames: s.frames.length,
     }));
   }
   return props.pet.clip.animations.map((name) => ({
     value: name,
-    label: SPINE_SEQUENCE_LABELS[name] ?? name,
+    label: getAnimationLabel(name),
     frames: 0,
   }));
+});
+
+const currentSequenceLabel = computed(() => {
+  const option = sequenceOptions.value.find(
+    (s) => s.value === currentSequence.value,
+  );
+  return option?.label ?? currentSequence.value;
 });
 
 let fpsFrames = 0;
@@ -230,6 +238,13 @@ function fitView() {
   activePlayer()?.fitToView();
 }
 
+function toggleControlsCollapsed() {
+  controlsCollapsed.value = !controlsCollapsed.value;
+  if (controlsCollapsed.value) {
+    requestAnimationFrame(() => activePlayer()?.fitToView());
+  }
+}
+
 function captureSource(): FrameCaptureSource | null {
   if (props.pet.type === "swf") return swfPlayer.value;
   return spinePlayer.value;
@@ -262,20 +277,64 @@ defineExpose({ fitView });
 </script>
 
 <template>
-  <div class="viewer" :class="toolbarPosition">
+  <div class="viewer" :class="[toolbarPosition, { mobile: isMobile }]">
     <div ref="canvasHost" class="canvas-host" />
 
-    <aside class="controls">
-      <div class="controls-row controls-main">
-        <div class="seq-tabs">
+    <aside
+      class="controls"
+      :class="{ collapsed: isMobile && controlsCollapsed }"
+    >
+      <div v-if="isMobile && controlsCollapsed" class="controls-collapsed-bar">
+        <div class="controls-main-top">
+          <div class="controls-collapsed-info">
+            <span class="controls-collapsed-label">{{ currentSequenceLabel }}</span>
+            <span class="controls-collapsed-frame">
+              {{ currentFrame + 1 }}/{{ frameCount }}
+            </span>
+            <button
+              type="button"
+              class="controls-collapsed-play primary"
+              :disabled="exporting"
+              @click="togglePlay"
+            >
+              {{ playing ? "暂停" : "播放" }}
+            </button>
+          </div>
           <button
-            v-for="seq in sequenceOptions"
-            :key="seq.value"
-            :class="{ active: currentSequence === seq.value }"
-            @click="currentSequence = seq.value"
+            type="button"
+            class="controls-collapse-btn compact"
+            aria-label="展开控制栏"
+            :aria-expanded="false"
+            @click="toggleControlsCollapsed"
           >
-            {{ seq.label }}
-            <span v-if="pet.type === 'swf'" class="count">{{ seq.frames }}</span>
+            ▲
+          </button>
+        </div>
+      </div>
+
+      <div v-show="!isMobile || !controlsCollapsed" class="controls-body">
+      <div class="controls-row controls-main">
+        <div class="controls-main-top">
+          <div class="seq-tabs">
+            <button
+              v-for="seq in sequenceOptions"
+              :key="seq.value"
+              :class="{ active: currentSequence === seq.value }"
+              @click="currentSequence = seq.value"
+            >
+              {{ seq.label }}
+              <span v-if="pet.type === 'swf'" class="count">{{ seq.frames }}</span>
+            </button>
+          </div>
+          <button
+            v-if="isMobile"
+            type="button"
+            class="controls-collapse-btn compact"
+            aria-label="收起控制栏"
+            :aria-expanded="true"
+            @click="toggleControlsCollapsed"
+          >
+            ▼
           </button>
         </div>
 
@@ -312,7 +371,49 @@ defineExpose({ fitView });
 
         <button class="fit-btn" @click="fitView">适应窗口</button>
 
-        <div class="export-group">
+        <div v-if="isMobile" class="export-accordion">
+          <button
+            type="button"
+            class="export-toggle"
+            :aria-expanded="exportExpanded"
+            @click="exportExpanded = !exportExpanded"
+          >
+            导出 {{ exportExpanded ? "▲" : "▼" }}
+          </button>
+          <div v-if="exportExpanded" class="export-group">
+            <label class="export-field">
+              <span>格式</span>
+              <select v-model="exportFormat" :disabled="exporting">
+                <option value="webp">WebP</option>
+                <option value="gif">GIF</option>
+              </select>
+            </label>
+            <label class="export-field">
+              <span>缩放</span>
+              <select v-model.number="exportScale" :disabled="exporting">
+                <option :value="1">1×</option>
+                <option :value="2">2×</option>
+                <option :value="3">3×</option>
+              </select>
+            </label>
+            <label class="export-field">
+              <span>背景</span>
+              <select v-model="exportBackground" :disabled="exporting">
+                <option value="transparent">透明</option>
+                <option value="theme">当前主题</option>
+              </select>
+            </label>
+            <button
+              class="export-btn primary"
+              :disabled="exporting"
+              @click="handleExport"
+            >
+              {{ exporting ? exportProgressLabel || "导出中…" : "导出动画" }}
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="export-group">
           <label class="export-field">
             <span>格式</span>
             <select v-model="exportFormat" :disabled="exporting">
@@ -344,6 +445,7 @@ defineExpose({ fitView });
           </button>
         </div>
         <p v-if="exportError" class="export-error">{{ exportError }}</p>
+      </div>
       </div>
     </aside>
   </div>
@@ -562,5 +664,180 @@ defineExpose({ fitView });
   font-size: 0.85em;
   color: var(--error);
   width: 100%;
+}
+
+.viewer.mobile .controls {
+  max-height: min(50vh, calc(100dvh - 120px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.viewer.mobile .controls.collapsed {
+  max-height: none;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  overflow: visible;
+}
+
+.controls-collapsed-bar {
+  width: 100%;
+}
+
+.controls-collapsed-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.controls-main-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.viewer.bottom:not(.mobile) .controls-main-top {
+  flex: 1;
+  min-width: 0;
+}
+
+.viewer.side .controls-main-top {
+  width: 100%;
+}
+
+.controls-main-top .seq-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.controls-collapsed-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.controls-collapsed-frame {
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.controls-collapsed-play {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+.controls-collapse-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--border);
+}
+
+.controls-collapse-btn.compact {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.controls-collapse-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.controls-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.viewer.mobile .controls-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.viewer.mobile .seq-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.viewer.mobile .seq-tabs button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 14px;
+}
+
+.viewer.mobile .transport {
+  width: 100%;
+}
+
+.viewer.mobile .transport button {
+  flex: 1;
+  min-height: 44px;
+}
+
+.viewer.mobile .controls-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.viewer.mobile .controls-main-top {
+  flex-direction: row;
+}
+
+.viewer.mobile .scrub,
+.viewer.mobile .speed,
+.viewer.mobile .fit-btn {
+  width: 100%;
+}
+
+.viewer.mobile .fit-btn {
+  min-height: 44px;
+}
+
+.export-accordion {
+  width: 100%;
+}
+
+.export-toggle {
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+}
+
+.viewer.mobile .export-group {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 8px;
+}
+
+.viewer.mobile .export-field select,
+.viewer.mobile .export-btn {
+  width: 100%;
+  min-height: 44px;
 }
 </style>

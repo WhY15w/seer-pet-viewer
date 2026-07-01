@@ -11,10 +11,11 @@
   },
   "dependencies": {
     "@seer/anim-export": "workspace:*",
-    "@seer/swf-bundle": "workspace:*",
-    "@seer/swf-renderer": "workspace:*",
     "@seer/spine-bundle": "workspace:*",
     "@seer/spine-renderer": "workspace:*",
+    "@seer/swf-bundle": "workspace:*",
+    "@seer/swf-renderer": "workspace:*",
+    "@tanstack/vue-virtual": "^3.13.31",
     "buffer": "^6.0.3",
     "vue": "^3.5.16"
   },

@@ -1,4 +1,5 @@
 import { computed, ref, watch } from "vue";
+import { useBreakpoint } from "./useBreakpoint";
 
 export type ThemePreference = "system" | "light" | "dark";
 export type ToolbarPosition = "bottom" | "side";
@@ -118,6 +119,7 @@ export function initViewerSettings(): void {
 
 export function useViewerSettings() {
   initViewerSettings();
+  const { isMobile } = useBreakpoint();
 
   watch(themePreference, () => {
     syncResolvedTheme();
@@ -136,6 +138,9 @@ export function useViewerSettings() {
   const nextToolbarLabel = computed(() =>
     toolbarPosition.value === "bottom" ? "侧边" : "底部",
   );
+  const effectiveToolbarPosition = computed<ToolbarPosition>(() =>
+    isMobile.value ? "bottom" : toolbarPosition.value,
+  );
 
   function cycleTheme(): void {
     const index = THEME_CYCLE.indexOf(themePreference.value);
@@ -150,6 +155,8 @@ export function useViewerSettings() {
   return {
     themePreference,
     toolbarPosition,
+    effectiveToolbarPosition,
+    isMobile,
     resolvedTheme,
     themeLabel,
     nextThemeLabel,

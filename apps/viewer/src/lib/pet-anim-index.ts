@@ -18,7 +18,9 @@ export interface PetAnimIndex {
   entries: PetAnimIndexEntry[];
 }
 
-export async function loadPetAnimIndex(): Promise<PetAnimIndex> {
+let cachedIndex: Promise<PetAnimIndex> | null = null;
+
+async function fetchPetAnimIndex(): Promise<PetAnimIndex> {
   const base = import.meta.env.BASE_URL;
   const url = `${base}pet-anim-index.json`.replace(/\/+/g, "/");
   const res = await fetch(url);
@@ -26,4 +28,9 @@ export async function loadPetAnimIndex(): Promise<PetAnimIndex> {
     throw new Error(`无法加载资源索引: ${res.status}`);
   }
   return res.json() as Promise<PetAnimIndex>;
+}
+
+export function loadPetAnimIndex(): Promise<PetAnimIndex> {
+  cachedIndex ??= fetchPetAnimIndex();
+  return cachedIndex;
 }

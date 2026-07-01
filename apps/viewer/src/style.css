@@ -2,6 +2,8 @@
   color-scheme: light dark;
   font-family: "Segoe UI", system-ui, sans-serif;
 
+  --mobile-breakpoint: 768px;
+
   --bg: #0f0f1a;
   --panel: #1a1a2e;
   --border: #2d2d44;
@@ -98,4 +100,16 @@ button.primary:hover {
 
 input[type="range"] {
   accent-color: var(--accent);
+}
+
+@media (max-width: 768px) {
+  button,
+  .btn,
+  .filter-btn {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+html {
+  overscroll-behavior: none;
 }

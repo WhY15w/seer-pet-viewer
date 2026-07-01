@@ -20,6 +20,19 @@ import type {
 } from "../lib/pet-anim-index";
 import { fetchBundleBuffer } from "../lib/remote-bundle";
 
+export interface RemoteLoadContext {
+  entry: PetAnimIndexEntry;
+  sharedBundles: PetAnimSharedBundle[];
+}
+
+function formatRemoteLoadError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function petLabel(entry: PetAnimIndexEntry): string {
+  return `#${entry.id}（${entry.name}）`;
+}
+
 export type PetClip =
   | { type: "swf"; clip: SwfClipData }
   | { type: "spine"; clip: SpineClipData };
@@ -32,6 +45,8 @@ const SHARED_MATERIAL_BASE_NAME = SHARED_SWF_MATERIAL_BUNDLE_NAME.replace(
 export function usePetLoader() {
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const loadingMessage = ref<string | null>(null);
+  const remoteLoadContext = ref<RemoteLoadContext | null>(null);
   const pet = ref<PetClip | null>(null);
   const parseMs = ref(0);
   const warnings = ref<string[]>([]);
@@ -89,8 +104,10 @@ export function usePetLoader() {
   async function loadBundleFile(file: File) {
     loading.value = true;
     error.value = null;
+    remoteLoadContext.value = null;
     warnings.value = [];
     const t0 = performance.now();
+    loadingMessage.value = `正在解析 ${file.name}…`;
     try {
       const buffer = await file.arrayBuffer();
       await parseBundleBuffer(buffer, file.name);
@@ -100,6 +117,7 @@ export function usePetLoader() {
       pet.value = null;
     } finally {
       loading.value = false;
+      loadingMessage.value = null;
     }
   }
 
@@ -159,20 +177,37 @@ export function usePetLoader() {
     loading.value = true;
     error.value = null;
     warnings.value = [];
+    remoteLoadContext.value = { entry, sharedBundles };
     const t0 = performance.now();
     try {
       if (entry.kind === "swf") {
+        loadingMessage.value = `正在下载 SWF 共享材质…`;
         await ensureSharedMaterialLoaded(sharedBundles);
       }
+      loadingMessage.value = `正在下载精灵 ${petLabel(entry)}…`;
       const buffer = await fetchBundleBuffer(entry.path);
+      loadingMessage.value = `正在解析精灵 ${petLabel(entry)}…`;
       await parseBundleBuffer(buffer, `${entry.name}.bundle`);
       parseMs.value = Math.round(performance.now() - t0);
+      remoteLoadContext.value = null;
     } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e);
+      error.value = formatRemoteLoadError(e);
       pet.value = null;
     } finally {
       loading.value = false;
+      loadingMessage.value = null;
     }
+  }
+
+  async function retryRemoteLoad() {
+    const ctx = remoteLoadContext.value;
+    if (!ctx) return;
+    await loadBundleFromRemote(ctx.entry, ctx.sharedBundles);
+  }
+
+  function dismissError() {
+    error.value = null;
+    remoteLoadContext.value = null;
   }
 
   async function loadSwfClipDir(files: FileList | File[]) {
@@ -267,6 +302,8 @@ export function usePetLoader() {
   function reset() {
     pet.value = null;
     error.value = null;
+    remoteLoadContext.value = null;
+    loadingMessage.value = null;
     warnings.value = [];
     parseMs.value = 0;
     lastSwfBuffer = null;
@@ -276,6 +313,8 @@ export function usePetLoader() {
   return {
     loading,
     error,
+    loadingMessage,
+    remoteLoadContext,
     pet,
     parseMs,
     warnings,
@@ -283,6 +322,8 @@ export function usePetLoader() {
     sharedMaterialBundleName: SHARED_SWF_MATERIAL_BUNDLE_NAME,
     loadBundleFile,
     loadBundleFromRemote,
+    retryRemoteLoad,
+    dismissError,
     loadSwfClipDir,
     loadSpineClipDir,
     loadMaterialBundle: loadMaterialBundleFile,

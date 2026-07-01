@@ -103,8 +103,12 @@ export interface SwfClipJson {
 
 export const SEQUENCE_LABELS: Record<string, string> = {
   standby: "待机",
-  attack: "出招",
-  sa: "必杀",
-  cp: "特性",
+  await: "待机",
+  attack: "物攻",
+  sa: "特攻",
+  cp: "属性",
   hited: "受击",
+  appear: "出场",
+  transform: "变身",
+  hidemove: "第五技能",
 };
