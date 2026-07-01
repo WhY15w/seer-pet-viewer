@@ -30,7 +30,9 @@ function getWorker(): Worker {
         height: atlasHeight as number,
         rgba,
       });
-      const clip = await loadSwfClipPackage(meta as SwfClipJson, bitmap);
+      const clip = await loadSwfClipPackage(meta as SwfClipJson, bitmap, {
+        atlasPrepared: true,
+      });
       handlers.resolve(clip);
     };
     worker.onerror = (e) => {

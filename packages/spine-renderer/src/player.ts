@@ -16,9 +16,30 @@ import {
 } from "@esotericsoftware/spine-webgl";
 import type { SpineClipData } from "@seer/spine-bundle";
 import { SPINE_PREVIEW_FPS } from "@seer/spine-bundle";
+import {
+  computeFittedCanvasLayout,
+  finalizeExportPixels,
+  mergeAlphaBounds,
+  planTightExport,
+  PROBE_MAX_SIDE,
+  type PixelRect,
+} from "@seer/anim-export/capture";
 
 export interface SpinePlayerOptions {
   backgroundColor?: number;
+}
+
+export interface SpineCaptureOptions {
+  sequence: string;
+  scale: number;
+  background: number | "transparent";
+}
+
+export interface SpineCapturedFrame {
+  index: number;
+  pixels: Uint8Array;
+  width: number;
+  height: number;
 }
 
 function hexToGlColor(hex: number): [number, number, number, number] {
@@ -57,6 +78,7 @@ export class SpinePlayer {
   private resizeObserver: ResizeObserver | null = null;
   private readonly screenScratch = new Vector3();
   private readonly screenScratch2 = new Vector3();
+  private exportSuspended = false;
 
   async mount(
     parent: HTMLElement,
@@ -184,8 +206,141 @@ export class SpinePlayer {
     if (!this.frameCount) return;
     this.frameIndex = Math.max(0, Math.min(frame, this.frameCount - 1));
     this.applyPose(this.frameIndex / SPINE_PREVIEW_FPS);
+    this.render();
     this.emitFrame();
   }
+
+  getSequenceFrameCount(name: string): number {
+    const anim = this.skeleton?.data.findAnimation(name);
+    if (!anim) return 0;
+    return Math.max(1, Math.ceil(anim.duration * SPINE_PREVIEW_FPS));
+  }
+
+  getExportFps(): number {
+    return SPINE_PREVIEW_FPS;
+  }
+
+  async *captureFrames(
+    options: SpineCaptureOptions,
+  ): AsyncGenerator<SpineCapturedFrame> {
+    if (!this.clip || !this.skeleton) return;
+    const anim = this.skeleton.data.findAnimation(options.sequence);
+    if (!anim) return;
+
+    const wasPlaying = this.playing;
+    const savedSequence = this.state.getCurrent(0)?.animation?.name;
+    const savedFrame = this.frameIndex;
+    const savedBg = this.backgroundColor;
+    const savedUserZoom = this.userZoom;
+    const savedCameraX = this.cameraX;
+    const savedCameraY = this.cameraY;
+    const savedCanvasW = this.canvas.width;
+    const savedCanvasH = this.canvas.height;
+
+    this.exportSuspended = true;
+    this.pause();
+    if (savedSequence !== options.sequence) {
+      this.setSequence(options.sequence);
+    }
+
+    const frameTotal = this.frameCount;
+    const bounds = this.computeSequenceBounds(frameTotal);
+    const pad = 2;
+    const transparent = options.background === "transparent";
+
+    if (transparent) {
+      this.backgroundColor = 0x000000;
+      this.renderWithAlphaClear = true;
+    } else if (typeof options.background === "number") {
+      this.backgroundColor = options.background;
+      this.renderWithAlphaClear = false;
+    }
+
+    const probeLayout = computeFittedCanvasLayout(bounds, PROBE_MAX_SIDE, pad);
+    this.canvas.width = probeLayout.width;
+    this.canvas.height = probeLayout.height;
+    this.renderer.resize(ResizeMode.Expand);
+    this.applyExportCamera(bounds, probeLayout.width, probeLayout.height, pad);
+
+    let alphaUnion: PixelRect | null = null;
+    for (let i = 0; i < frameTotal; i++) {
+      this.frameIndex = i;
+      this.applyPose(i / SPINE_PREVIEW_FPS);
+      this.renderExport();
+      const probePixels = this.readExportPixels(
+        probeLayout.width,
+        probeLayout.height,
+      );
+      alphaUnion = mergeAlphaBounds(
+        probePixels,
+        probeLayout.width,
+        probeLayout.height,
+        alphaUnion,
+        transparent,
+      );
+    }
+
+    if (!alphaUnion) {
+      throw new Error("未检测到可导出的非透明像素");
+    }
+
+    const plan = planTightExport(alphaUnion, probeLayout, options.scale, pad);
+    this.canvas.width = plan.renderLayout.width;
+    this.canvas.height = plan.renderLayout.height;
+    this.renderer.resize(ResizeMode.Expand);
+    this.applyExportCamera(
+      bounds,
+      plan.renderLayout.width,
+      plan.renderLayout.height,
+      pad,
+    );
+
+    try {
+      for (let i = 0; i < frameTotal; i++) {
+        this.frameIndex = i;
+        this.applyPose(i / SPINE_PREVIEW_FPS);
+        this.renderExport();
+        const renderPixels = this.readExportPixels(
+          plan.renderLayout.width,
+          plan.renderLayout.height,
+        );
+        yield {
+          index: i,
+          pixels: finalizeExportPixels(
+            renderPixels,
+            plan.renderLayout.width,
+            plan.renderLayout.height,
+            plan,
+            pad,
+          ),
+          width: plan.exportWidth,
+          height: plan.exportHeight,
+        };
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      }
+    } finally {
+      this.renderWithAlphaClear = false;
+      this.backgroundColor = savedBg;
+      this.canvas.width = savedCanvasW;
+      this.canvas.height = savedCanvasH;
+      this.renderer.resize(ResizeMode.Expand);
+      this.userZoom = savedUserZoom;
+      this.cameraX = savedCameraX;
+      this.cameraY = savedCameraY;
+      this.updateCamera(false);
+      if (savedSequence && savedSequence !== options.sequence) {
+        this.setSequence(savedSequence);
+      } else {
+        this.frameIndex = savedFrame;
+        this.applyPose(this.frameIndex / SPINE_PREVIEW_FPS);
+      }
+      this.render();
+      this.exportSuspended = false;
+      if (wasPlaying) this.play();
+    }
+  }
+
+  private renderWithAlphaClear = false;
 
   getCanvas(): HTMLCanvasElement {
     return this.canvas;
@@ -331,8 +486,98 @@ export class SpinePlayer {
       }
     }
 
-    this.render();
+    if (!this.exportSuspended) {
+      this.render();
+    }
   };
+
+  private computeSequenceBounds(frameTotal: number): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } {
+    const offset = new Vector2();
+    const size = new Vector2();
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < frameTotal; i++) {
+      this.applyPose(i / SPINE_PREVIEW_FPS);
+      this.skeleton.updateWorldTransform();
+      this.skeleton.getBounds(offset, size);
+      minX = Math.min(minX, offset.x);
+      minY = Math.min(minY, offset.y);
+      maxX = Math.max(maxX, offset.x + size.x);
+      maxY = Math.max(maxY, offset.y + size.y);
+    }
+    if (!Number.isFinite(minX)) {
+      return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  private applyExportCamera(
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    width: number,
+    height: number,
+    pad = 0,
+  ): void {
+    const { camera } = this.renderer;
+    const bw = bounds.maxX - bounds.minX || 1;
+    const bh = bounds.maxY - bounds.minY || 1;
+    const availW = Math.max(1, width - pad * 2);
+    const availH = Math.max(1, height - pad * 2);
+    this.fitZoom = Math.max(bw / availW, bh / availH);
+    camera.zoom = this.fitZoom;
+    this.cameraX = bounds.minX + bw / 2;
+    this.cameraY = bounds.minY + bh / 2;
+    camera.position.x = this.cameraX;
+    camera.position.y = this.cameraY;
+    camera.update();
+  }
+
+  private renderExport(): void {
+    this.renderer.resize(ResizeMode.Expand);
+    const gl = this.context.gl;
+    if (this.renderWithAlphaClear) {
+      gl.clearColor(0, 0, 0, 0);
+    } else {
+      const [r, g, b, a] = hexToGlColor(this.backgroundColor);
+      gl.clearColor(r, g, b, a);
+    }
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    this.renderer.begin();
+    this.renderer.drawSkeleton(this.skeleton, true);
+    this.renderer.end();
+  }
+
+  private readExportPixels(width: number, height: number): Uint8Array {
+    const gl = this.context.gl;
+    const raw = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+    const rowBytes = width * 4;
+    const out = new Uint8Array(raw.length);
+    for (let y = 0; y < height; y++) {
+      const srcRow = (height - 1 - y) * rowBytes;
+      out.set(raw.subarray(srcRow, srcRow + rowBytes), y * rowBytes);
+    }
+    for (let i = 0; i < out.length; i += 4) {
+      const a = out[i + 3]! / 255;
+      if (a <= 0) {
+        out[i] = 0;
+        out[i + 1] = 0;
+        out[i + 2] = 0;
+        continue;
+      }
+      if (a >= 1) continue;
+      out[i] = Math.min(255, Math.round(out[i]! / a));
+      out[i + 1] = Math.min(255, Math.round(out[i + 1]! / a));
+      out[i + 2] = Math.min(255, Math.round(out[i + 2]! / a));
+    }
+    return out;
+  }
 
   private render(): void {
     this.renderer.resize(ResizeMode.Expand);

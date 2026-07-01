@@ -6,11 +6,67 @@ import {
   compileHighShaderGlProgram,
   localUniformBitGl,
   roundPixelsBitGl,
-  textureBitGl,
   type GlProgram,
 } from "pixi.js";
 import type { SwfBlendMode } from "@seer/swf-bundle";
 import { grabModeId } from "./shaders.js";
+
+/** 递增以在热更新后强制重新编译 shader */
+const SHADER_CACHE_VERSION = 4;
+let shaderCacheVersion = -1;
+
+/**
+ * 与 pet_export.sample_bilinear_vec 一致：u*(w-1) 像素坐标 + 软件双线性。
+ * 用 nearest + 四次采样，避免硬件对直通 alpha 图集分离插值 RGB/A 产生暗边。
+ */
+const swfAtlasTextureBitGl = {
+  name: "swf-atlas-texture-bit",
+  vertex: {
+    header: /* glsl */ `
+      uniform mat3 uTextureMatrix;
+    `,
+    main: /* glsl */ `
+      uv = (uTextureMatrix * vec3(uv, 1.0)).xy;
+    `,
+  },
+  fragment: {
+    header: /* glsl */ `
+      uniform sampler2D uTexture;
+      uniform vec2 uAtlasSize;
+
+      vec4 fetchAtlasTexel(vec2 pixel) {
+        vec2 texelUv = (pixel + 0.5) / uAtlasSize;
+        return texture(uTexture, texelUv);
+      }
+
+      vec4 sampleSwfAtlas(vec2 atlasUv) {
+        if (atlasUv.x < 0.0 || atlasUv.x > 1.0 || atlasUv.y < 0.0 || atlasUv.y > 1.0) {
+          return vec4(0.0);
+        }
+        float w = uAtlasSize.x;
+        float h = uAtlasSize.y;
+        float x = atlasUv.x * (w - 1.0);
+        float y = atlasUv.y * (h - 1.0);
+        float x0 = floor(x);
+        float y0 = floor(y);
+        float x1 = min(x0 + 1.0, w - 1.0);
+        float y1 = min(y0 + 1.0, h - 1.0);
+        float tx = x - x0;
+        float ty = y - y0;
+        vec4 c00 = fetchAtlasTexel(vec2(x0, y0));
+        vec4 c10 = fetchAtlasTexel(vec2(x1, y0));
+        vec4 c01 = fetchAtlasTexel(vec2(x0, y1));
+        vec4 c11 = fetchAtlasTexel(vec2(x1, y1));
+        vec4 c0 = mix(c00, c10, tx);
+        vec4 c1 = mix(c01, c11, tx);
+        return mix(c0, c1, ty);
+      }
+    `,
+    main: /* glsl */ `
+      outColor = sampleSwfAtlas(vUV);
+    `,
+  },
+};
 
 const swfColorBitGl = {
   name: "swf-color-bit",
@@ -36,20 +92,30 @@ const swfColorBitGl = {
       outColor = outColor * vMulColor * uTint;
       float swfA = outColor.a;
       outColor = outColor + step(0.01, swfA) * vAddColor;
-      outColor.rgb *= outColor.a;
     `,
   },
 };
 
 const swfGrabBitGl = {
   name: "swf-grab-bit",
+  vertex: {
+    header: /* glsl */ `
+      out vec2 vScreenUV;
+    `,
+    end: /* glsl */ `
+      vec2 ndc = gl_Position.xy / gl_Position.w;
+      vScreenUV = ndc * 0.5 + 0.5;
+      vScreenUV.y = 1.0 - vScreenUV.y;
+    `,
+  },
   fragment: {
     header: /* glsl */ `
       uniform sampler2D uGrabTexture;
       uniform int uGrabMode;
+      in vec2 vScreenUV;
     `,
     main: /* glsl */ `
-      vec4 grab = texture(uGrabTexture, vUV);
+      vec4 grab = texture(uGrabTexture, vScreenUV);
       if (uGrabMode == 1) {
         outColor = min(grab, outColor);
         outColor.a = grab.a;
@@ -65,7 +131,6 @@ const swfGrabBitGl = {
         outColor = mix(2.0 * grab * outColor, 1.0 - (1.0 - grab) * (1.0 - 2.0 * (outColor - 0.5)), step(0.5, outColor));
         outColor.a = grab.a;
       }
-      outColor.rgb *= outColor.a;
     `,
   },
 };
@@ -95,24 +160,39 @@ let glProgramNormal: GlProgram | null = null;
 let glProgramGrab: GlProgram | null = null;
 let glProgramMask: GlProgram | null = null;
 
+function invalidateShaderCacheIfNeeded(): void {
+  if (shaderCacheVersion === SHADER_CACHE_VERSION) return;
+  glProgramNormal = null;
+  glProgramGrab = null;
+  glProgramMask = null;
+  shaderCacheVersion = SHADER_CACHE_VERSION;
+}
+
 function getGlProgram(grab: boolean, mask = false): GlProgram {
+  invalidateShaderCacheIfNeeded();
   if (mask) {
     glProgramMask ??= compileHighShaderGlProgram({
-      name: "swf-mask-shader",
-      bits: [localUniformBitGl, textureBitGl, swfMaskBitGl, roundPixelsBitGl],
+      name: "swf-mask-shader-atlas",
+      bits: [localUniformBitGl, swfAtlasTextureBitGl, swfMaskBitGl, roundPixelsBitGl],
     });
     return glProgramMask;
   }
   if (grab) {
     glProgramGrab ??= compileHighShaderGlProgram({
-      name: "swf-grab-shader",
-      bits: [localUniformBitGl, textureBitGl, swfColorBitGl, swfGrabBitGl, roundPixelsBitGl],
+      name: "swf-grab-shader-atlas",
+      bits: [
+        localUniformBitGl,
+        swfAtlasTextureBitGl,
+        swfColorBitGl,
+        swfGrabBitGl,
+        roundPixelsBitGl,
+      ],
     });
     return glProgramGrab;
   }
   glProgramNormal ??= compileHighShaderGlProgram({
-    name: "swf-shader",
-    bits: [localUniformBitGl, textureBitGl, swfColorBitGl, roundPixelsBitGl],
+    name: "swf-shader-atlas",
+    bits: [localUniformBitGl, swfAtlasTextureBitGl, swfColorBitGl, roundPixelsBitGl],
   });
   return glProgramNormal;
 }
@@ -121,6 +201,8 @@ export function createSwfShader(
   texture: Texture,
   grab: boolean,
   tint: [number, number, number, number],
+  atlasWidth: number,
+  atlasHeight: number,
   mask = false,
 ): Shader {
   const swfUniforms = new UniformGroup({
@@ -139,6 +221,10 @@ export function createSwfShader(
       swfUniforms,
       textureUniforms: new UniformGroup({
         uTextureMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
+        uAtlasSize: {
+          value: new Float32Array([atlasWidth, atlasHeight]),
+          type: "vec2<f32>",
+        },
       }),
       uTexture: texture.source,
       uSampler: texture.source.style,
@@ -157,6 +243,8 @@ export function updateSwfShaderResources(
   texture: Texture,
   tint: [number, number, number, number],
   grab: boolean,
+  atlasWidth: number,
+  atlasHeight: number,
   grabBlend?: SwfBlendMode,
   grabTexture?: Texture,
   mask = false,
@@ -164,8 +252,10 @@ export function updateSwfShaderResources(
   if (mask) {
     const textureUniforms = shader.resources.textureUniforms as UniformGroup<{
       uTextureMatrix: { value: Matrix; type: "mat3x3<f32>" };
+      uAtlasSize: { value: Float32Array; type: "vec2<f32>" };
     }>;
     textureUniforms.uniforms.uTextureMatrix.copyFrom(texture.textureMatrix.mapCoord);
+    textureUniforms.uniforms.uAtlasSize.set([atlasWidth, atlasHeight]);
     textureUniforms.update();
     shader.resources.uTexture = texture.source;
     shader.resources.uSampler = texture.source.style;
@@ -181,8 +271,10 @@ export function updateSwfShaderResources(
 
   const textureUniforms = shader.resources.textureUniforms as UniformGroup<{
     uTextureMatrix: { value: Matrix; type: "mat3x3<f32>" };
+    uAtlasSize: { value: Float32Array; type: "vec2<f32>" };
   }>;
   textureUniforms.uniforms.uTextureMatrix.copyFrom(texture.textureMatrix.mapCoord);
+  textureUniforms.uniforms.uAtlasSize.set([atlasWidth, atlasHeight]);
   textureUniforms.update();
 
   shader.resources.uTexture = texture.source;

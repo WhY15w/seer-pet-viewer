@@ -10,6 +10,9 @@ importers:
 
   apps/viewer:
     dependencies:
+      '@seer/anim-export':
+        specifier: workspace:*
+        version: link:../../packages/anim-export
       '@seer/spine-bundle':
         specifier: workspace:*
         version: link:../../packages/spine-bundle
@@ -42,6 +45,19 @@ importers:
         specifier: ^2.2.10
         version: 2.2.12(typescript@5.9.3)
 
+  packages/anim-export:
+    dependencies:
+      gifenc:
+        specifier: ^1.0.3
+        version: 1.0.3
+      wasm-webp:
+        specifier: ^0.1.0
+        version: 0.1.0
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/spine-bundle:
     dependencies:
       '@arkntools/unity-js':
@@ -72,6 +88,9 @@ importers:
       '@esotericsoftware/spine-webgl':
         specifier: 4.0.31
         version: 4.0.31
+      '@seer/anim-export':
+        specifier: workspace:*
+        version: link:../anim-export
       '@seer/spine-bundle':
         specifier: workspace:*
         version: link:../spine-bundle
@@ -101,6 +120,9 @@ importers:
 
   packages/swf-renderer:
     dependencies:
+      '@seer/anim-export':
+        specifier: workspace:*
+        version: link:../anim-export
       '@seer/swf-bundle':
         specifier: workspace:*
         version: link:../swf-bundle
@@ -1155,6 +1177,9 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  gifenc@1.0.3:
+    resolution: {integrity: sha512-xdr6AdrfGBcfzncONUOlXMBuc5wJDtOueE3c5rdG0oNgtINLD+f2iFZltrBRZYzACRbKr+mSVU/x98zv2u3jmw==}
+
   gifuct-js@2.1.2:
     resolution: {integrity: sha512-rI2asw77u0mGgwhV3qA+OEgYqaDn5UNqgs+Bx0FGwSpuqfYn+Ir6RQY5ENNQ8SbIiG/m5gVa7CD5RriO4f4Lsg==}
 
@@ -1478,6 +1503,9 @@ packages:
 
   wasm-feature-detect@1.8.0:
     resolution: {integrity: sha512-zksaLKM2fVlnB5jQQDqKXXwYHLQUVH9es+5TOOHwGOVJOCeRBCiPjwSg+3tN2AdTCzjgli4jijCH290kXb/zWQ==}
+
+  wasm-webp@0.1.0:
+    resolution: {integrity: sha512-Z1Sop+mLKogzDK3vJzSPfSxRF1yj/zbmn+XJuU9+7fvarxcuGhGkeLBqJr5H8LdgWuAwEKuZelCzx7ujztfhVQ==}
 
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
@@ -2373,6 +2401,8 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
+  gifenc@1.0.3: {}
+
   gifuct-js@2.1.2:
     dependencies:
       js-binary-schema-parser: 2.0.3
@@ -2729,6 +2759,8 @@ snapshots:
       typescript: 5.9.3
 
   wasm-feature-detect@1.8.0: {}
+
+  wasm-webp@0.1.0: {}
 
   web-streams-polyfill@3.3.3:
     optional: true

@@ -1,4 +1,5 @@
 import type { SwfClipData, SwfClipJson, ParsedSwfBundle, SwfSequence } from "./types.js";
+import { prepareAtlasBitmap } from "./atlas.js";
 
 export function extractPetId(fileName: string, fallbackName?: string): number {
   const fromFile = fileName.match(/ppets?_?(\d+)/i)?.[1];
@@ -47,11 +48,15 @@ export function swfClipDataToJson(data: SwfClipData): SwfClipJson {
 export async function loadSwfClipPackage(
   meta: SwfClipJson,
   atlas: Blob | ImageBitmap,
+  options?: { atlasPrepared?: boolean },
 ): Promise<SwfClipData> {
-  const bitmap =
+  const rawBitmap =
     typeof ImageBitmap !== "undefined" && atlas instanceof ImageBitmap
       ? atlas
       : await createImageBitmap(atlas as Blob);
+  const bitmap = options?.atlasPrepared
+    ? rawBitmap
+    : await prepareAtlasBitmap(rawBitmap, meta.atlasWidth, meta.atlasHeight);
 
   return {
     petId: meta.petId,

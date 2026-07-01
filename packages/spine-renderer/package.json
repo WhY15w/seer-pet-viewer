@@ -16,6 +16,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@seer/anim-export": "workspace:*",
     "@seer/spine-bundle": "workspace:*",
     "@esotericsoftware/spine-core": "4.0.31",
     "@esotericsoftware/spine-webgl": "4.0.31"

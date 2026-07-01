@@ -1,1 +1,6 @@
-export { SpinePlayer, type SpinePlayerOptions } from "./player.js";
+export {
+  SpinePlayer,
+  type SpinePlayerOptions,
+  type SpineCaptureOptions,
+  type SpineCapturedFrame,
+} from "./player.js";

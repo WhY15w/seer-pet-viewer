@@ -16,17 +16,73 @@ export function boundsToQuadUvs(
   v1: number,
   u2: number,
   v2: number,
+  atlasWidth?: number,
+  atlasHeight?: number,
 ): [number, number][] {
-  const uMin = Math.min(u1, u2);
-  const uMax = Math.max(u1, u2);
-  const vMin = Math.min(v1, v2);
-  const vMax = Math.max(v1, v2);
+  let uMin = Math.min(u1, u2);
+  let uMax = Math.max(u1, u2);
+  let vMin = Math.min(v1, v2);
+  let vMax = Math.max(v1, v2);
+
+  if (atlasWidth && atlasHeight && atlasWidth > 2 && atlasHeight > 2) {
+    const du = 0.5 / atlasWidth;
+    const dv = 0.5 / atlasHeight;
+    if (uMax - uMin > du * 2) {
+      uMin += du;
+      uMax -= du;
+    }
+    if (vMax - vMin > dv * 2) {
+      vMin += dv;
+      vMax -= dv;
+    }
+  }
+
   return [
     [uMin, 1 - vMin],
     [uMax, 1 - vMin],
     [uMax, 1 - vMax],
     [uMin, 1 - vMax],
   ];
+}
+
+/** 对已展开的 4 顶点 UV 做半 texel 内缩，避免线性过滤采到 padding */
+export function insetQuadUvs(
+  uvs: ArrayLike<number>,
+  vertexOffset: number,
+  atlasWidth: number,
+  atlasHeight: number,
+): void {
+  if (atlasWidth <= 2 || atlasHeight <= 2) return;
+  const du = 0.5 / atlasWidth;
+  const dv = 0.5 / atlasHeight;
+
+  let uMin = Infinity;
+  let uMax = -Infinity;
+  let vMin = Infinity;
+  let vMax = -Infinity;
+  for (let q = 0; q < 4; q++) {
+    const u = uvs[vertexOffset + q * 2]!;
+    const v = uvs[vertexOffset + q * 2 + 1]!;
+    uMin = Math.min(uMin, u);
+    uMax = Math.max(uMax, u);
+    vMin = Math.min(vMin, v);
+    vMax = Math.max(vMax, v);
+  }
+  if (uMax - uMin <= du * 2 || vMax - vMin <= dv * 2) return;
+
+  uMin += du;
+  uMax -= du;
+  vMin += dv;
+  vMax -= dv;
+
+  for (let q = 0; q < 4; q++) {
+    const i = vertexOffset + q * 2;
+    const u = uvs[i]!;
+    const v = uvs[i + 1]!;
+    (uvs as number[])[i] = Math.abs(u - uMin) < Math.abs(u - uMax) ? uMin : uMax;
+    (uvs as number[])[i + 1] =
+      Math.abs(v - vMin) < Math.abs(v - vMax) ? vMin : vMax;
+  }
 }
 
 export function unpackFColorFromUInts(

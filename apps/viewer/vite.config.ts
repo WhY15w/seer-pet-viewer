@@ -10,35 +10,70 @@ const unityJsRoot = resolve(
 export default defineConfig(({ command }) => ({
   plugins: [vue()],
   resolve: {
-    alias: {
-      "@seer/swf-bundle/parse": resolve(
-        __dirname,
-        "../../packages/swf-bundle/src/parse.ts",
-      ),
-      "@seer/swf-bundle": resolve(__dirname, "../../packages/swf-bundle/src"),
-      "@seer/swf-renderer": resolve(__dirname, "../../packages/swf-renderer/src"),
-      "@seer/spine-bundle": resolve(__dirname, "../../packages/spine-bundle/src"),
-      "@seer/spine-renderer": resolve(
-        __dirname,
-        "../../packages/spine-renderer/src",
-      ),
-      buffer: "buffer/",
-      [resolve(unityJsRoot, "utils/aes.js")]: resolve(
-        unityJsRoot,
-        "utils/aes.browser.js",
-      ),
-      [resolve(unityJsRoot, "lib/jimp/png.js")]: resolve(
-        unityJsRoot,
-        "lib/jimp/png.browser.js",
-      ),
-    },
+    alias: [
+      {
+        find: "@seer/anim-export/capture",
+        replacement: resolve(
+          __dirname,
+          "../../packages/anim-export/src/capture.ts",
+        ),
+      },
+      {
+        find: "@seer/anim-export",
+        replacement: resolve(
+          __dirname,
+          "../../packages/anim-export/src/index.ts",
+        ),
+      },
+      {
+        find: "@seer/swf-bundle/parse",
+        replacement: resolve(
+          __dirname,
+          "../../packages/swf-bundle/src/parse.ts",
+        ),
+      },
+      {
+        find: "@seer/swf-bundle",
+        replacement: resolve(__dirname, "../../packages/swf-bundle/src"),
+      },
+      {
+        find: "@seer/swf-renderer",
+        replacement: resolve(
+          __dirname,
+          "../../packages/swf-renderer/src/index.ts",
+        ),
+      },
+      {
+        find: "@seer/spine-bundle",
+        replacement: resolve(
+          __dirname,
+          "../../packages/spine-bundle/src/index.ts",
+        ),
+      },
+      {
+        find: "@seer/spine-renderer",
+        replacement: resolve(
+          __dirname,
+          "../../packages/spine-renderer/src/index.ts",
+        ),
+      },
+      { find: "buffer", replacement: "buffer/" },
+      {
+        find: resolve(unityJsRoot, "utils/aes.js"),
+        replacement: resolve(unityJsRoot, "utils/aes.browser.js"),
+      },
+      {
+        find: resolve(unityJsRoot, "lib/jimp/png.js"),
+        replacement: resolve(unityJsRoot, "lib/jimp/png.browser.js"),
+      },
+    ],
   },
   define: {
     global: "globalThis",
   },
   optimizeDeps: {
-    exclude: ["@jimp/wasm-png"],
-    include: ["buffer", "@arkntools/unity-js"],
+    exclude: ["@jimp/wasm-png", "wasm-webp"],
+    include: ["buffer", "gifenc", "@arkntools/unity-js"],
     esbuildOptions: {
       define: {
         global: "globalThis",
@@ -64,5 +99,6 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     target: "esnext",
+    assetsInlineLimit: 0,
   },
 }));

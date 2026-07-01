@@ -7,12 +7,14 @@ import {
   SPINE_SEQUENCE_LABELS,
   type SpineClipData,
 } from "@seer/spine-bundle";
+import type { FrameCaptureSource } from "@seer/anim-export";
 import type { PetClip } from "../composables/usePetLoader";
 import type { ToolbarPosition } from "../composables/useViewerSettings";
 import {
   getCanvasBackgroundColor,
   useViewerSettings,
 } from "../composables/useViewerSettings";
+import { useAnimationExport } from "../composables/useAnimationExport";
 
 const props = withDefaults(
   defineProps<{
@@ -28,6 +30,15 @@ const emit = defineEmits<{
 }>();
 
 const { resolvedTheme } = useViewerSettings();
+const {
+  exporting,
+  exportError,
+  exportProgress,
+  exportFormat,
+  exportScale,
+  exportBackground,
+  runExport,
+} = useAnimationExport();
 
 const canvasHost = ref<HTMLElement | null>(null);
 const swfPlayer = ref<SwfPlayer | null>(null);
@@ -219,6 +230,29 @@ function fitView() {
   activePlayer()?.fitToView();
 }
 
+function captureSource(): FrameCaptureSource | null {
+  if (props.pet.type === "swf") return swfPlayer.value;
+  return spinePlayer.value;
+}
+
+async function handleExport() {
+  const source = captureSource();
+  if (!source) return;
+  await runExport(
+    source,
+    props.pet.clip.petId,
+    currentSequence.value,
+    getCanvasBackgroundColor(),
+  );
+}
+
+const exportProgressLabel = computed(() => {
+  const p = exportProgress.value;
+  if (!p) return "";
+  const phase = p.phase === "capture" ? "捕获" : "编码";
+  return `${phase} ${p.done}/${p.total}`;
+});
+
 onBeforeUnmount(() => {
   swfPlayer.value?.destroy();
   spinePlayer.value?.destroy();
@@ -246,13 +280,13 @@ defineExpose({ fitView });
         </div>
 
         <div class="transport">
-          <button @click="stepFrame(-1)">上一帧</button>
-          <button class="primary" @click="togglePlay">
+          <button :disabled="exporting" @click="stepFrame(-1)">上一帧</button>
+          <button class="primary" :disabled="exporting" @click="togglePlay">
             {{ playing ? "暂停" : "播放" }}
           </button>
-          <button @click="stepFrame(1)">下一帧</button>
+          <button :disabled="exporting" @click="stepFrame(1)">下一帧</button>
           <label class="check">
-            <input v-model="loop" type="checkbox" />
+            <input v-model="loop" type="checkbox" :disabled="exporting" />
             循环
           </label>
         </div>
@@ -265,6 +299,7 @@ defineExpose({ fitView });
             :min="0"
             :max="Math.max(0, frameCount - 1)"
             :value="currentFrame"
+            :disabled="exporting"
             @input="onSeek"
           />
           <span>{{ currentFrame + 1 }} / {{ frameCount }}</span>
@@ -276,6 +311,39 @@ defineExpose({ fitView });
         </div>
 
         <button class="fit-btn" @click="fitView">适应窗口</button>
+
+        <div class="export-group">
+          <label class="export-field">
+            <span>格式</span>
+            <select v-model="exportFormat" :disabled="exporting">
+              <option value="webp">WebP</option>
+              <option value="gif">GIF</option>
+            </select>
+          </label>
+          <label class="export-field">
+            <span>缩放</span>
+            <select v-model.number="exportScale" :disabled="exporting">
+              <option :value="1">1×</option>
+              <option :value="2">2×</option>
+              <option :value="3">3×</option>
+            </select>
+          </label>
+          <label class="export-field">
+            <span>背景</span>
+            <select v-model="exportBackground" :disabled="exporting">
+              <option value="transparent">透明</option>
+              <option value="theme">当前主题</option>
+            </select>
+          </label>
+          <button
+            class="export-btn primary"
+            :disabled="exporting"
+            @click="handleExport"
+          >
+            {{ exporting ? exportProgressLabel || "导出中…" : "导出动画" }}
+          </button>
+        </div>
+        <p v-if="exportError" class="export-error">{{ exportError }}</p>
       </div>
     </aside>
   </div>
@@ -449,6 +517,50 @@ defineExpose({ fitView });
 }
 
 .viewer.side .fit-btn {
+  width: 100%;
+}
+
+.export-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.viewer.side .export-group {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.export-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.export-field select {
+  min-width: 72px;
+}
+
+.viewer.side .export-field select {
+  width: 100%;
+}
+
+.export-btn {
+  flex-shrink: 0;
+}
+
+.viewer.side .export-btn {
+  width: 100%;
+}
+
+.export-error {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--error);
   width: 100%;
 }
 </style>

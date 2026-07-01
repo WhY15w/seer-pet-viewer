@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference path="../../packages/anim-export/src/shims.d.ts" />
 
 interface ImportMetaEnv {
   readonly VITE_BUNDLE_PROXY_PREFIX?: string;

@@ -7,12 +7,22 @@ import {
   Shader,
   Texture,
 } from "pixi.js";
+import {
+  computeFittedCanvasLayout,
+  finalizeExportPixels,
+  mergeAlphaBounds,
+  planTightExport,
+  PROBE_MAX_SIDE,
+  type PixelRect,
+} from "@seer/anim-export/capture";
+import { readRenderTexturePixels } from "./read-render-texture-pixels.js";
 import type {
   SwfClipData,
   SwfFrame,
   SwfSequence,
   SwfSubMesh,
 } from "@seer/swf-bundle";
+import { insetQuadUvs } from "@seer/swf-bundle";
 import {
   materialToPixiBlend,
   needsGrabPass,
@@ -25,6 +35,19 @@ import { createSwfShader, updateSwfShaderResources } from "./swf-shader.js";
 export interface SwfPlayerOptions {
   backgroundColor?: number;
   tint?: [number, number, number, number];
+}
+
+export interface SwfCaptureOptions {
+  sequence: string;
+  scale: number;
+  background: number | "transparent";
+}
+
+export interface SwfCapturedFrame {
+  index: number;
+  pixels: Uint8Array;
+  width: number;
+  height: number;
 }
 
 type MeshRole = "content" | "mask";
@@ -67,13 +90,15 @@ export class SwfPlayer {
     this.tint = options.tint ?? [1, 1, 1, 1];
     this.texture = Texture.from(clip.atlas);
     this.texture.source.scaleMode = "nearest";
+    // 直通 alpha 图集 + shader 直通输出 → Pixi 使用 normal-npm 混合（等价于 pet_export PMA over）
     this.texture.source.alphaMode = "no-premultiply-alpha";
 
     this.app = new Application();
     await this.app.init({
       resizeTo: parent,
       background: options.backgroundColor ?? 0x1a1a2e,
-      antialias: false,
+      antialias: true,
+      preferWebGLVersion: 2,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
       preference: "webgl",
@@ -83,9 +108,28 @@ export class SwfPlayer {
     this.root.addChild(this.stage);
     this.app.stage.addChild(this.root);
 
-    this.shaders.normal = createSwfShader(this.texture, false, this.tint);
-    this.shaders.grab = createSwfShader(this.texture, true, this.tint);
-    this.shaders.mask = createSwfShader(this.texture, false, this.tint, true);
+    this.shaders.normal = createSwfShader(
+      this.texture,
+      false,
+      this.tint,
+      clip.atlasWidth,
+      clip.atlasHeight,
+    );
+    this.shaders.grab = createSwfShader(
+      this.texture,
+      true,
+      this.tint,
+      clip.atlasWidth,
+      clip.atlasHeight,
+    );
+    this.shaders.mask = createSwfShader(
+      this.texture,
+      false,
+      this.tint,
+      clip.atlasWidth,
+      clip.atlasHeight,
+      true,
+    );
 
     this.setSequence(clip.sequences[0]?.name ?? "standby");
     requestAnimationFrame(() => this.fitToView());
@@ -162,6 +206,168 @@ export class SwfPlayer {
 
   getFrameCount(): number {
     return this.sequence?.frames.length ?? 0;
+  }
+
+  getSequenceFrameCount(name: string): number {
+    const seq = this.clip?.sequences.find((s) => s.name === name);
+    return seq?.frames.length ?? 0;
+  }
+
+  getExportFps(): number {
+    return this.clip?.frameRate ?? 24;
+  }
+
+  async *captureFrames(
+    options: SwfCaptureOptions,
+  ): AsyncGenerator<SwfCapturedFrame> {
+    if (!this.clip || !this.app) return;
+    const seq = this.clip.sequences.find((s) => s.name === options.sequence);
+    if (!seq?.frames.length) return;
+
+    const wasPlaying = this.playing;
+    const savedSequence = this.sequence?.name;
+    const savedFrame = this.frameIndex;
+    const savedUserZoom = this.userZoom;
+    const savedRootPos = { x: this.root.position.x, y: this.root.position.y };
+    const savedRootScale = { x: this.root.scale.x, y: this.root.scale.y };
+    const savedBgColor = this.app.renderer.background.color;
+    const savedBgAlpha = this.app.renderer.background.alpha;
+
+    this.pause();
+    if (this.sequence?.name !== options.sequence) {
+      this.setSequence(options.sequence);
+    }
+
+    const positionBounds = this.computeSequenceBounds(seq);
+    const pad = 2;
+    const transparent = options.background === "transparent";
+    const probeLayout = computeFittedCanvasLayout(
+      positionBounds,
+      PROBE_MAX_SIDE,
+      pad,
+    );
+
+    const probeRT = RenderTexture.create({
+      width: probeLayout.width,
+      height: probeLayout.height,
+      resolution: 1,
+    });
+    if (transparent) {
+      this.app.renderer.background.alpha = 0;
+      this.app.renderer.background.color = 0;
+    } else {
+      this.app.renderer.background.alpha = 1;
+      this.app.renderer.background.color = options.background;
+    }
+    this.resizeGrabTexture(probeLayout.width, probeLayout.height);
+
+    let alphaUnion: PixelRect | null = null;
+
+    try {
+      for (let i = 0; i < seq.frames.length; i++) {
+        this.frameIndex = i;
+        this.applyExportTransform(
+          positionBounds,
+          probeLayout.width,
+          probeLayout.height,
+          probeLayout.pixelsPerUnitX,
+          probeLayout.pixelsPerUnitY,
+        );
+        this.renderCurrentFrameMeshes();
+        this.app.renderer.render({
+          container: this.app.stage,
+          target: probeRT,
+          clear: true,
+        });
+        const probePixels = readRenderTexturePixels(
+          this.app,
+          probeRT,
+          probeLayout.width,
+          probeLayout.height,
+        );
+        alphaUnion = mergeAlphaBounds(
+          probePixels,
+          probeLayout.width,
+          probeLayout.height,
+          alphaUnion,
+          transparent,
+        );
+      }
+    } finally {
+      probeRT.destroy(true);
+    }
+
+    if (!alphaUnion) {
+      throw new Error("未检测到可导出的非透明像素");
+    }
+
+    const plan = planTightExport(
+      alphaUnion,
+      probeLayout,
+      options.scale,
+      pad,
+    );
+
+    const exportRT = RenderTexture.create({
+      width: plan.renderLayout.width,
+      height: plan.renderLayout.height,
+      resolution: 1,
+    });
+    this.resizeGrabTexture(plan.renderLayout.width, plan.renderLayout.height);
+
+    try {
+      for (let i = 0; i < seq.frames.length; i++) {
+        this.frameIndex = i;
+        this.applyExportTransform(
+          positionBounds,
+          plan.renderLayout.width,
+          plan.renderLayout.height,
+          plan.renderLayout.pixelsPerUnitX,
+          plan.renderLayout.pixelsPerUnitY,
+        );
+        this.renderCurrentFrameMeshes();
+        this.app.renderer.render({
+          container: this.app.stage,
+          target: exportRT,
+          clear: true,
+        });
+
+        const renderPixels = readRenderTexturePixels(
+          this.app,
+          exportRT,
+          plan.renderLayout.width,
+          plan.renderLayout.height,
+        );
+        yield {
+          index: i,
+          pixels: finalizeExportPixels(
+            renderPixels,
+            plan.renderLayout.width,
+            plan.renderLayout.height,
+            plan,
+            pad,
+          ),
+          width: plan.exportWidth,
+          height: plan.exportHeight,
+        };
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      }
+    } finally {
+      exportRT.destroy(true);
+      this.app.renderer.background.color = savedBgColor;
+      this.app.renderer.background.alpha = savedBgAlpha;
+      if (savedSequence && savedSequence !== options.sequence) {
+        this.setSequence(savedSequence);
+      } else {
+        this.frameIndex = savedFrame;
+        this.renderCurrentFrame();
+      }
+      this.userZoom = savedUserZoom;
+      this.root.position.set(savedRootPos.x, savedRootPos.y);
+      this.root.scale.set(savedRootScale.x, savedRootScale.y);
+      this.applyTransform(false);
+      if (wasPlaying) this.play();
+    }
   }
 
   getCanvas(): HTMLCanvasElement {
@@ -250,14 +456,18 @@ export class SwfPlayer {
   }
 
   private renderCurrentFrame(): void {
+    this.renderCurrentFrameMeshes();
+    this.onFrameChange?.(this.frameIndex, this.sequence!.frames.length);
+    this.app?.render();
+  }
+
+  private renderCurrentFrameMeshes(): void {
     if (!this.sequence) return;
     const frame = this.sequence.frames[this.frameIndex];
     if (!frame) return;
     this.updateBounds(frame);
     this.clearMeshes();
     this.renderFrame(frame);
-    this.onFrameChange?.(this.frameIndex, this.sequence.frames.length);
-    this.app?.render();
   }
 
   private updateBounds(frame: SwfFrame): void {
@@ -375,6 +585,13 @@ export class SwfPlayer {
       indices.push(frame.mesh.indices[subMesh.indexStart + j]! - start);
     }
 
+    if (this.clip) {
+      const quadCount = vertCount / 4;
+      for (let q = 0; q < quadCount; q++) {
+        insetQuadUvs(uvs, q * 8, this.clip.atlasWidth, this.clip.atlasHeight);
+      }
+    }
+
     const geometry = new Geometry({
       attributes: {
         aPosition: { buffer: new Float32Array(positions), size: 2 },
@@ -396,6 +613,8 @@ export class SwfPlayer {
       this.texture,
       this.tint,
       grab,
+      this.clip!.atlasWidth,
+      this.clip!.atlasHeight,
       material.grabBlend,
       grab ? this.ensureGrabTexture() : undefined,
       mask,
@@ -416,12 +635,74 @@ export class SwfPlayer {
 
   private ensureGrabTexture(): RenderTexture {
     if (!this.grabTexture) {
-      this.grabTexture = RenderTexture.create({
-        width: Math.max(1, this.app.screen.width),
-        height: Math.max(1, this.app.screen.height),
-      });
+      this.grabTexture = this.createGrabTexture(
+        Math.max(1, this.app.screen.width),
+        Math.max(1, this.app.screen.height),
+      );
     }
     return this.grabTexture;
+  }
+
+  private resizeGrabTexture(width: number, height: number): void {
+    if (
+      this.grabTexture &&
+      (this.grabTexture.width !== width || this.grabTexture.height !== height)
+    ) {
+      this.grabTexture.destroy(true);
+      this.grabTexture = null;
+    }
+    if (!this.grabTexture) {
+      this.grabTexture = this.createGrabTexture(width, height);
+    }
+  }
+
+  private createGrabTexture(width: number, height: number): RenderTexture {
+    const rt = RenderTexture.create({ width, height });
+    rt.source.scaleMode = "nearest";
+    rt.source.alphaMode = "no-premultiply-alpha";
+    return rt;
+  }
+
+  private computeSequenceBounds(seq: SwfSequence): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const frame of seq.frames) {
+      const pos = frame.mesh.positions;
+      for (let i = 0; i < pos.length; i += 2) {
+        minX = Math.min(minX, pos[i]!);
+        maxX = Math.max(maxX, pos[i]!);
+        minY = Math.min(minY, pos[i + 1]!);
+        maxY = Math.max(maxY, pos[i + 1]!);
+      }
+    }
+    if (!Number.isFinite(minX)) {
+      return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  private applyExportTransform(
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    width: number,
+    height: number,
+    pixelsPerUnitX: number,
+    pixelsPerUnitY: number,
+  ): void {
+    // 预览用负 Y 适配屏幕；导出到纹理时用正 Y，配合 readPixels 翻转后与预览朝向一致
+    this.root.scale.set(pixelsPerUnitX, pixelsPerUnitY);
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = (bounds.minY + bounds.maxY) / 2;
+    this.root.position.set(
+      width / 2 - cx * pixelsPerUnitX,
+      height / 2 - cy * pixelsPerUnitY,
+    );
   }
 
   private snapshotGrab(): void {
