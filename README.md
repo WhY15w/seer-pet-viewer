@@ -66,5 +66,30 @@ pnpm build:index
 
 未配置代理时，远程资源选择器会自动隐藏，仍可本地导入 bundle。
 
+### 通过 URL 直接打开精灵
+
+在已配置远程资源代理的部署环境中，可通过查询参数自动加载指定精灵，无需在列表中手动选择。
+
+```
+https://nattsu39.github.io/seer-pet-viewer/?pet=1234
+```
+
+| 参数 | 说明 |
+|------|------|
+| `pet` | 精灵 ID（如 `1234`），或 bundle 名称（`ppets_1234`、`pskilltimeline_spines_4000`） |
+| `kind` | 可选，显式指定格式：`swf` 或 `spine` |
+| `variant` | 可选，设为 `small` 时打开小体型 SWF（`ppets_*_small`） |
+
+仅填写数字 ID 时，会同时匹配 SWF（`ppets_{id}`）与 Spine（`pskilltimeline_spines_{id}`）两种命名；若同一 ID 存在多种资源，默认优先 Spine，其次常规 SWF，最后小体型 SWF。
+
+示例：
+
+- `?pet=1234` — 打开 ID 为 1234 的精灵
+- `?pet=4000` — 打开 Spine 技能时间轴动画 `pskilltimeline_spines_4000`
+- `?pet=132&variant=small` — 打开小体型 SWF `ppets_132_small`
+- `?pet=1234&kind=swf` — 强制使用 SWF 格式
+
+本地开发时同样可用，例如 `http://localhost:5173/?pet=1234`（需 Vite `/proxy` 可用）。
+
 ## ‌致谢
 [@聿聿](https://github.com/WhY15w)

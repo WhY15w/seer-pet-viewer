@@ -3,7 +3,13 @@ import { defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import PetPicker from "./components/PetPicker.vue";
 import { usePetLoader } from "./composables/usePetLoader";
 import { useViewerSettings } from "./composables/useViewerSettings";
+import {
+  findPetIndexEntry,
+  parsePetDeepLink,
+} from "./lib/pet-deep-link";
 import type { PetAnimIndex, PetAnimIndexEntry } from "./lib/pet-anim-index";
+import { loadPetAnimIndex } from "./lib/pet-anim-index";
+import { isRemoteBundleEnabled } from "./lib/remote-bundle";
 
 const PetViewer = defineAsyncComponent(
   () => import("./components/PetViewer.vue"),
@@ -40,6 +46,7 @@ const fps = ref(0);
 const frameInfo = ref("-");
 const showInfoMenu = ref(false);
 const infoMenuRef = ref<HTMLElement | null>(null);
+const deepLinkQuery = ref("");
 
 function toggleInfoMenu(e: MouseEvent) {
   e.stopPropagation();
@@ -52,7 +59,31 @@ function onDocClick(e: MouseEvent) {
   if (el && !el.contains(e.target as Node)) showInfoMenu.value = false;
 }
 
-onMounted(() => document.addEventListener("click", onDocClick));
+async function tryOpenPetFromQuery() {
+  if (!isRemoteBundleEnabled()) return;
+
+  const link = parsePetDeepLink(window.location.search);
+  if (!link) return;
+
+  deepLinkQuery.value = String(link.petId);
+
+  try {
+    const index = await loadPetAnimIndex();
+    const entry = findPetIndexEntry(index.entries, link);
+    if (!entry) {
+      error.value = `未找到精灵 #${link.petId}`;
+      return;
+    }
+    await loadBundleFromRemote(entry, index.sharedBundles);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("click", onDocClick);
+  void tryOpenPetFromQuery();
+});
 onUnmounted(() => document.removeEventListener("click", onDocClick));
 
 function onDrop(e: DragEvent) {
@@ -208,7 +239,11 @@ function onRemoteSelect(entry: PetAnimIndexEntry, index: PetAnimIndex) {
     >
       <p v-if="loading">正在解析…</p>
       <template v-else>
-        <PetPicker :loading="loading" @select="onRemoteSelect" />
+        <PetPicker
+          :loading="loading"
+          :initial-query="deepLinkQuery"
+          @select="onRemoteSelect"
+        />
         <p class="drop-title">拖放 <code>ppets_*</code> 或 <code>pskilltimeline_spines_*</code> bundle 到此处</p>
         <p class="drop-hint">
           或点击上方按钮选择文件；支持预转换 <code>.swfclip</code> / <code>.spineclip</code> 目录

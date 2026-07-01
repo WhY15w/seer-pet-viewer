@@ -9,6 +9,7 @@ import { isRemoteBundleEnabled } from "../lib/remote-bundle";
 
 const props = defineProps<{
   loading?: boolean;
+  initialQuery?: string;
 }>();
 
 const emit = defineEmits<{
@@ -17,7 +18,7 @@ const emit = defineEmits<{
 
 const index = ref<PetAnimIndex | null>(null);
 const indexError = ref<string | null>(null);
-const query = ref("");
+const query = ref(props.initialQuery ?? "");
 const kindFilter = ref<"all" | "swf" | "spine">("all");
 
 const remoteEnabled = isRemoteBundleEnabled();
