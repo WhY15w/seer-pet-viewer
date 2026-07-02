@@ -1,6 +1,6 @@
 {
   "version": "20260625181040",
-  "updatedAt": "2026-07-02T09:53:21.988Z",
+  "updatedAt": "2026-07-02T10:11:55.539Z",
   "sharedBundles": [
     {
       "name": "petanimpackage_share_assets_flashtools_resources_materials_generated",
@@ -3631,7 +3631,8 @@
       "kind": "swf",
       "name": "ppets_502",
       "path": "9ca079718594c3d0d05dde35e04becc0",
-      "fileSize": 9377161
+      "fileSize": 9377161,
+      "mirrored": true
     },
     {
       "id": 502,
@@ -33444,7 +33445,8 @@
       "kind": "swf",
       "name": "ppets_4444",
       "path": "3d9860b1c0502b0b72b9ab8e3e3a2f9a",
-      "fileSize": 13246040
+      "fileSize": 13246040,
+      "mirrored": true
     },
     {
       "id": 4445,
@@ -33521,7 +33523,8 @@
       "kind": "swf",
       "name": "ppets_4455",
       "path": "a1bfce2a54a8d62641017054a89b492d",
-      "fileSize": 5705242
+      "fileSize": 5705242,
+      "mirrored": true
     },
     {
       "id": 4456,
@@ -33598,7 +33601,8 @@
       "kind": "swf",
       "name": "ppets_4466",
       "path": "a5885ccc28dd8b4c848cbdf75baef1ff",
-      "fileSize": 8485960
+      "fileSize": 8485960,
+      "mirrored": true
     },
     {
       "id": 4466,
@@ -33613,7 +33617,8 @@
       "kind": "swf",
       "name": "ppets_4467",
       "path": "637398440c146c1befffaf62a990f37b",
-      "fileSize": 9638983
+      "fileSize": 9638983,
+      "mirrored": true
     },
     {
       "id": 4467,
@@ -33628,7 +33633,8 @@
       "kind": "swf",
       "name": "ppets_4468",
       "path": "e0ffdc235f5adb1d0caa83ccfe395dcd",
-      "fileSize": 13796472
+      "fileSize": 13796472,
+      "mirrored": true
     },
     {
       "id": 4468,
@@ -33636,7 +33642,8 @@
       "name": "ppets_4468_small",
       "path": "54473dbdbdbd17754eb582415d4d98d5",
       "fileSize": 5319427,
-      "variant": "small"
+      "variant": "small",
+      "mirrored": true
     },
     {
       "id": 4469,
@@ -33664,7 +33671,8 @@
       "kind": "swf",
       "name": "ppets_4472",
       "path": "7fa55abd24eb9d9d17c0b44c7f63fb66",
-      "fileSize": 6207135
+      "fileSize": 6207135,
+      "mirrored": true
     },
     {
       "id": 4472,
@@ -33679,7 +33687,8 @@
       "kind": "swf",
       "name": "ppets_4473",
       "path": "3a1291ab8f79c2ec805638352182406d",
-      "fileSize": 6465680
+      "fileSize": 6465680,
+      "mirrored": true
     },
     {
       "id": 4474,
@@ -33791,7 +33800,8 @@
       "kind": "swf",
       "name": "ppets_4489",
       "path": "4288bc8bded1ff1acfb812004e2505de",
-      "fileSize": 8335212
+      "fileSize": 8335212,
+      "mirrored": true
     },
     {
       "id": 4489,
@@ -33820,7 +33830,8 @@
       "kind": "swf",
       "name": "ppets_4492",
       "path": "8250274364d679f86d002216e9f91d79",
-      "fileSize": 9419491
+      "fileSize": 9419491,
+      "mirrored": true
     },
     {
       "id": 4492,
@@ -33842,7 +33853,8 @@
       "kind": "swf",
       "name": "ppets_4494",
       "path": "41ac0b49f2c81696dde6eb2af83d737c",
-      "fileSize": 7648899
+      "fileSize": 7648899,
+      "mirrored": true
     },
     {
       "id": 4494,
@@ -33878,7 +33890,8 @@
       "kind": "swf",
       "name": "ppets_4498",
       "path": "29056d9fa3c0abb1b3d8b493f078f13c",
-      "fileSize": 11339057
+      "fileSize": 11339057,
+      "mirrored": true
     },
     {
       "id": 4498,
@@ -33893,14 +33906,16 @@
       "kind": "swf",
       "name": "ppets_4499",
       "path": "9637a76a501fa0d715b291c61a23ceea",
-      "fileSize": 6522637
+      "fileSize": 6522637,
+      "mirrored": true
     },
     {
       "id": 4500,
       "kind": "swf",
       "name": "ppets_4500",
       "path": "732e2c77466d0b6f421965365c7798ee",
-      "fileSize": 7141016
+      "fileSize": 7141016,
+      "mirrored": true
     },
     {
       "id": 4501,
@@ -33970,14 +33985,16 @@
       "kind": "swf",
       "name": "ppets_4510",
       "path": "0e73a7315fd2fd234215ef8bd5f26a2e",
-      "fileSize": 5392714
+      "fileSize": 5392714,
+      "mirrored": true
     },
     {
       "id": 4511,
       "kind": "swf",
       "name": "ppets_4511",
       "path": "0e28dab96984d1c361182771a2dfb229",
-      "fileSize": 8242404
+      "fileSize": 8242404,
+      "mirrored": true
     },
     {
       "id": 4511,
@@ -34034,7 +34051,8 @@
       "kind": "swf",
       "name": "ppets_4518",
       "path": "b6e2372711c8a6aa429b060253b13d44",
-      "fileSize": 8043275
+      "fileSize": 8043275,
+      "mirrored": true
     },
     {
       "id": 4518,
@@ -34294,7 +34312,8 @@
       "kind": "swf",
       "name": "ppets_4554",
       "path": "2cf6ac976515f64082c8f93776b95f8b",
-      "fileSize": 5951234
+      "fileSize": 5951234,
+      "mirrored": true
     },
     {
       "id": 4554,
@@ -34617,14 +34636,16 @@
       "kind": "swf",
       "name": "ppets_4599",
       "path": "a5dda37974a193efb27883b2c8348eee",
-      "fileSize": 5657174
+      "fileSize": 5657174,
+      "mirrored": true
     },
     {
       "id": 4600,
       "kind": "swf",
       "name": "ppets_4600",
       "path": "fd87cbeff41e20e75c2811e8f345d3f0",
-      "fileSize": 7048375
+      "fileSize": 7048375,
+      "mirrored": true
     },
     {
       "id": 4601,
@@ -34652,7 +34673,8 @@
       "kind": "swf",
       "name": "ppets_4604",
       "path": "4400a79b72ccea35513d01dcda031918",
-      "fileSize": 10352320
+      "fileSize": 10352320,
+      "mirrored": true
     },
     {
       "id": 4604,
@@ -34941,7 +34963,8 @@
       "kind": "swf",
       "name": "ppets_4643",
       "path": "3848669eeed329b5386eb2856a57e433",
-      "fileSize": 11680820
+      "fileSize": 11680820,
+      "mirrored": true
     },
     {
       "id": 4643,
@@ -35026,7 +35049,8 @@
       "kind": "swf",
       "name": "ppets_4654",
       "path": "29549317b9dc9b05035681f3022d7ed0",
-      "fileSize": 5400256
+      "fileSize": 5400256,
+      "mirrored": true
     },
     {
       "id": 4655,
@@ -35075,7 +35099,8 @@
       "kind": "swf",
       "name": "ppets_4661",
       "path": "913273a90e36650b4caf9ed22d4a79a3",
-      "fileSize": 6394969
+      "fileSize": 6394969,
+      "mirrored": true
     },
     {
       "id": 4662,
@@ -35180,14 +35205,16 @@
       "kind": "swf",
       "name": "ppets_4676",
       "path": "66231624ca5330cf8f17d8bc52ea9f5c",
-      "fileSize": 5323474
+      "fileSize": 5323474,
+      "mirrored": true
     },
     {
       "id": 4677,
       "kind": "swf",
       "name": "ppets_4677",
       "path": "8a11d9a767fdd4cc7fdebefff213df46",
-      "fileSize": 5897821
+      "fileSize": 5897821,
+      "mirrored": true
     },
     {
       "id": 4678,
@@ -35208,7 +35235,8 @@
       "kind": "swf",
       "name": "ppets_4680",
       "path": "21939e087f31416e5c30c14751526695",
-      "fileSize": 8853092
+      "fileSize": 8853092,
+      "mirrored": true
     },
     {
       "id": 4681,
@@ -35390,7 +35418,8 @@
       "kind": "swf",
       "name": "ppets_4706",
       "path": "49246fe48dd283979907385398fc9f83",
-      "fileSize": 10419789
+      "fileSize": 10419789,
+      "mirrored": true
     },
     {
       "id": 4707,
@@ -35586,7 +35615,8 @@
       "kind": "swf",
       "name": "ppets_4734",
       "path": "0751cb668823e160861357ddf816cfde",
-      "fileSize": 5749545
+      "fileSize": 5749545,
+      "mirrored": true
     },
     {
       "id": 4735,
@@ -35642,7 +35672,8 @@
       "kind": "swf",
       "name": "ppets_4742",
       "path": "42ee189508dcbbc3c1a7f2b35b83a037",
-      "fileSize": 5410098
+      "fileSize": 5410098,
+      "mirrored": true
     },
     {
       "id": 4743,
@@ -35663,7 +35694,8 @@
       "kind": "swf",
       "name": "ppets_4745",
       "path": "281ff0d61b279402bd87741bc7b98f17",
-      "fileSize": 5382645
+      "fileSize": 5382645,
+      "mirrored": true
     },
     {
       "id": 4746,
@@ -35677,7 +35709,8 @@
       "kind": "swf",
       "name": "ppets_4747",
       "path": "2d8fcb60a1a6e28c84e3f05286c07e38",
-      "fileSize": 6084826
+      "fileSize": 6084826,
+      "mirrored": true
     },
     {
       "id": 4748,
@@ -35698,7 +35731,8 @@
       "kind": "swf",
       "name": "ppets_4750",
       "path": "62fb27b02331393fb61c9b8b02189a98",
-      "fileSize": 7331602
+      "fileSize": 7331602,
+      "mirrored": true
     },
     {
       "id": 4751,
@@ -35733,21 +35767,24 @@
       "kind": "swf",
       "name": "ppets_4755",
       "path": "3af4857dfc52f6e10967107bc111d01d",
-      "fileSize": 6309762
+      "fileSize": 6309762,
+      "mirrored": true
     },
     {
       "id": 4756,
       "kind": "swf",
       "name": "ppets_4756",
       "path": "2cb1a136b9e1a5005819e2b3e5b31699",
-      "fileSize": 6328789
+      "fileSize": 6328789,
+      "mirrored": true
     },
     {
       "id": 4757,
       "kind": "swf",
       "name": "ppets_4757",
       "path": "5933f3f5774865056a523439197151a8",
-      "fileSize": 19077256
+      "fileSize": 19077256,
+      "mirrored": true
     },
     {
       "id": 4757,
@@ -35755,14 +35792,16 @@
       "name": "ppets_4757_small",
       "path": "af064d2add8c8383d1a95319abd752be",
       "fileSize": 6079963,
-      "variant": "small"
+      "variant": "small",
+      "mirrored": true
     },
     {
       "id": 4758,
       "kind": "swf",
       "name": "ppets_4758",
       "path": "379c5fcb41901f18ea7a26e3ea4ad8db",
-      "fileSize": 15207732
+      "fileSize": 15207732,
+      "mirrored": true
     },
     {
       "id": 4758,
@@ -35777,7 +35816,8 @@
       "kind": "swf",
       "name": "ppets_4759",
       "path": "c960d1d7d5016337c79d612d86a15119",
-      "fileSize": 5341534
+      "fileSize": 5341534,
+      "mirrored": true
     },
     {
       "id": 4760,
@@ -35791,14 +35831,16 @@
       "kind": "swf",
       "name": "ppets_4761",
       "path": "dce8ff190254ded94e8f74dda3173fb2",
-      "fileSize": 5794674
+      "fileSize": 5794674,
+      "mirrored": true
     },
     {
       "id": 4762,
       "kind": "swf",
       "name": "ppets_4762",
       "path": "93a2d4af0f44e974b0d5538b98caebe6",
-      "fileSize": 10216534
+      "fileSize": 10216534,
+      "mirrored": true
     },
     {
       "id": 4762,
@@ -35827,7 +35869,8 @@
       "kind": "swf",
       "name": "ppets_4765",
       "path": "177a881ef32e133ad769704e450bcc28",
-      "fileSize": 15955009
+      "fileSize": 15955009,
+      "mirrored": true
     },
     {
       "id": 4765,
@@ -35835,14 +35878,16 @@
       "name": "ppets_4765_small",
       "path": "aa075326ee3f5e8f1cc5a5cbad3e1983",
       "fileSize": 5358464,
-      "variant": "small"
+      "variant": "small",
+      "mirrored": true
     },
     {
       "id": 4766,
       "kind": "swf",
       "name": "ppets_4766",
       "path": "e8debdcf8d2478a8c5459b4ad9372d37",
-      "fileSize": 19477154
+      "fileSize": 19477154,
+      "mirrored": true
     },
     {
       "id": 4766,
@@ -35850,7 +35895,8 @@
       "name": "ppets_4766_small",
       "path": "cabfb23617cdcd0403608cd295dc399c",
       "fileSize": 6143448,
-      "variant": "small"
+      "variant": "small",
+      "mirrored": true
     },
     {
       "id": 4767,
@@ -35969,7 +36015,8 @@
       "kind": "swf",
       "name": "ppets_4783",
       "path": "13224e328c01df9279628223a7eb0375",
-      "fileSize": 8188439
+      "fileSize": 8188439,
+      "mirrored": true
     },
     {
       "id": 4784,
@@ -36074,7 +36121,8 @@
       "kind": "swf",
       "name": "ppets_4798",
       "path": "c5df0870c31505dc94c48130ddd25235",
-      "fileSize": 9123600
+      "fileSize": 9123600,
+      "mirrored": true
     },
     {
       "id": 4798,
@@ -36096,35 +36144,40 @@
       "kind": "swf",
       "name": "ppets_4800",
       "path": "d6219bad7cb3d928c041eb57960d8b83",
-      "fileSize": 10683382
+      "fileSize": 10683382,
+      "mirrored": true
     },
     {
       "id": 4801,
       "kind": "swf",
       "name": "ppets_4801",
       "path": "b4b616d7b18b6d07db393efae21f159c",
-      "fileSize": 6098528
+      "fileSize": 6098528,
+      "mirrored": true
     },
     {
       "id": 4802,
       "kind": "swf",
       "name": "ppets_4802",
       "path": "b82a5e0df8681114b9b373c62c075003",
-      "fileSize": 7102305
+      "fileSize": 7102305,
+      "mirrored": true
     },
     {
       "id": 4803,
       "kind": "swf",
       "name": "ppets_4803",
       "path": "abd222c375a7ea74f9d2181f585bbf98",
-      "fileSize": 7190545
+      "fileSize": 7190545,
+      "mirrored": true
     },
     {
       "id": 4804,
       "kind": "swf",
       "name": "ppets_4804",
       "path": "cef853a4d406efca8d736cfa321c32cb",
-      "fileSize": 5951303
+      "fileSize": 5951303,
+      "mirrored": true
     },
     {
       "id": 4805,
@@ -36208,7 +36261,8 @@
       "kind": "swf",
       "name": "ppets_4816",
       "path": "259c0388bc9a7d09fc38def47a0a831b",
-      "fileSize": 7190595
+      "fileSize": 7190595,
+      "mirrored": true
     },
     {
       "id": 4817,
@@ -36236,7 +36290,8 @@
       "kind": "swf",
       "name": "ppets_4820",
       "path": "ba7f90e914f301fcef6e6e020a71b052",
-      "fileSize": 9297056
+      "fileSize": 9297056,
+      "mirrored": true
     },
     {
       "id": 4821,
@@ -36250,7 +36305,8 @@
       "kind": "swf",
       "name": "ppets_4822",
       "path": "2d06f43622b7d251009c8f88aaaf1e5f",
-      "fileSize": 5847202
+      "fileSize": 5847202,
+      "mirrored": true
     },
     {
       "id": 4823,
@@ -36334,7 +36390,8 @@
       "kind": "swf",
       "name": "ppets_4834",
       "path": "8190447ff21ba3c32bf939a852ddaec1",
-      "fileSize": 7314812
+      "fileSize": 7314812,
+      "mirrored": true
     },
     {
       "id": 4835,
@@ -36369,14 +36426,16 @@
       "kind": "swf",
       "name": "ppets_4839",
       "path": "dc534ce737b0a2e91503ac757029c1d2",
-      "fileSize": 5341483
+      "fileSize": 5341483,
+      "mirrored": true
     },
     {
       "id": 4840,
       "kind": "swf",
       "name": "ppets_4840",
       "path": "b24d6e972554410aefaafeacebef5449",
-      "fileSize": 8064573
+      "fileSize": 8064573,
+      "mirrored": true
     },
     {
       "id": 4841,
@@ -36411,7 +36470,8 @@
       "kind": "swf",
       "name": "ppets_4845",
       "path": "63fee7e3bb0d2c716dc2ee28830da8ae",
-      "fileSize": 5433554
+      "fileSize": 5433554,
+      "mirrored": true
     },
     {
       "id": 4846,
@@ -36432,7 +36492,8 @@
       "kind": "swf",
       "name": "ppets_4848",
       "path": "1a3278da56ed3a72fe333a1a07c98e85",
-      "fileSize": 5515065
+      "fileSize": 5515065,
+      "mirrored": true
     },
     {
       "id": 4849,
@@ -36467,14 +36528,16 @@
       "kind": "swf",
       "name": "ppets_4853",
       "path": "09d6f6f5638c7625624bc93fac476769",
-      "fileSize": 14430489
+      "fileSize": 14430489,
+      "mirrored": true
     },
     {
       "id": 4854,
       "kind": "swf",
       "name": "ppets_4854",
       "path": "eed50b9a2dfbad4e7f32baf09f298a44",
-      "fileSize": 7574746
+      "fileSize": 7574746,
+      "mirrored": true
     },
     {
       "id": 4855,
@@ -36516,14 +36579,16 @@
       "kind": "swf",
       "name": "ppets_4860",
       "path": "9c7d9c1120d1cf0a3fcdab55574274a7",
-      "fileSize": 6409916
+      "fileSize": 6409916,
+      "mirrored": true
     },
     {
       "id": 4861,
       "kind": "swf",
       "name": "ppets_4861",
       "path": "d5f316de18cacef3a7ac30fa7fa380ff",
-      "fileSize": 5564028
+      "fileSize": 5564028,
+      "mirrored": true
     },
     {
       "id": 4862,
@@ -36537,7 +36602,8 @@
       "kind": "swf",
       "name": "ppets_4863",
       "path": "2712fe695f6a73b059a506d23487d147",
-      "fileSize": 5923371
+      "fileSize": 5923371,
+      "mirrored": true
     },
     {
       "id": 4864,
@@ -36551,14 +36617,16 @@
       "kind": "swf",
       "name": "ppets_4865",
       "path": "af5f14282e2586580ad1072cc055ecc4",
-      "fileSize": 6213643
+      "fileSize": 6213643,
+      "mirrored": true
     },
     {
       "id": 4866,
       "kind": "swf",
       "name": "ppets_4866",
       "path": "b3bd04560e022342967452260349edd3",
-      "fileSize": 5351741
+      "fileSize": 5351741,
+      "mirrored": true
     },
     {
       "id": 4867,
@@ -36586,21 +36654,24 @@
       "kind": "swf",
       "name": "ppets_4870",
       "path": "e65c34f420dd018e38d5323e07a9ac5c",
-      "fileSize": 5581807
+      "fileSize": 5581807,
+      "mirrored": true
     },
     {
       "id": 4871,
       "kind": "swf",
       "name": "ppets_4871",
       "path": "0355481a3f0e5b74ad67843694355c42",
-      "fileSize": 21394760
+      "fileSize": 21394760,
+      "mirrored": true
     },
     {
       "id": 4872,
       "kind": "swf",
       "name": "ppets_4872",
       "path": "db4824e67b1793a6631a1d582bbe7d43",
-      "fileSize": 16663184
+      "fileSize": 16663184,
+      "mirrored": true
     },
     {
       "id": 4873,
@@ -36614,14 +36685,16 @@
       "kind": "swf",
       "name": "ppets_4874",
       "path": "b217a5b58b44e19242fbd7762038041e",
-      "fileSize": 12872439
+      "fileSize": 12872439,
+      "mirrored": true
     },
     {
       "id": 4875,
       "kind": "swf",
       "name": "ppets_4875",
       "path": "43e0d3718fa4e59e61467f67b7893eb5",
-      "fileSize": 7154438
+      "fileSize": 7154438,
+      "mirrored": true
     },
     {
       "id": 4876,
@@ -36663,7 +36736,8 @@
       "kind": "swf",
       "name": "ppets_4881",
       "path": "e4ba893eb37a0d300d30d4f746d3978a",
-      "fileSize": 5569464
+      "fileSize": 5569464,
+      "mirrored": true
     },
     {
       "id": 4882,
@@ -36691,14 +36765,16 @@
       "kind": "swf",
       "name": "ppets_4885",
       "path": "f4dc25c231187721c43f5384737baf24",
-      "fileSize": 6355058
+      "fileSize": 6355058,
+      "mirrored": true
     },
     {
       "id": 4886,
       "kind": "swf",
       "name": "ppets_4886",
       "path": "422dd195cc517e4bcd46c388ddb0ad32",
-      "fileSize": 6826134
+      "fileSize": 6826134,
+      "mirrored": true
     },
     {
       "id": 4887,
@@ -36712,7 +36788,8 @@
       "kind": "swf",
       "name": "ppets_4888",
       "path": "35d8678cb4840916105823e02009e00b",
-      "fileSize": 13684990
+      "fileSize": 13684990,
+      "mirrored": true
     },
     {
       "id": 4889,
@@ -36726,7 +36803,8 @@
       "kind": "swf",
       "name": "ppets_4890",
       "path": "4300fd98114856248ec557072c364dc7",
-      "fileSize": 23363486
+      "fileSize": 23363486,
+      "mirrored": true
     },
     {
       "id": 4891,
@@ -36754,14 +36832,16 @@
       "kind": "swf",
       "name": "ppets_4894",
       "path": "1f97105e6aa6dd6de33a6af6450f5ca9",
-      "fileSize": 7562332
+      "fileSize": 7562332,
+      "mirrored": true
     },
     {
       "id": 4895,
       "kind": "swf",
       "name": "ppets_4895",
       "path": "b972406a1fe8155f7d6eaad3b1ee8bac",
-      "fileSize": 9155167
+      "fileSize": 9155167,
+      "mirrored": true
     },
     {
       "id": 4896,
@@ -36775,14 +36855,16 @@
       "kind": "swf",
       "name": "ppets_4897",
       "path": "aad6e44e23ef6e47574dbb421f89a1f6",
-      "fileSize": 8570531
+      "fileSize": 8570531,
+      "mirrored": true
     },
     {
       "id": 4898,
       "kind": "swf",
       "name": "ppets_4898",
       "path": "6deca5585578a316870cffd1508a8010",
-      "fileSize": 7540515
+      "fileSize": 7540515,
+      "mirrored": true
     },
     {
       "id": 4899,
@@ -36796,7 +36878,8 @@
       "kind": "swf",
       "name": "ppets_4900",
       "path": "40d7fd90d058e5be8b22514c913e2f9a",
-      "fileSize": 6074784
+      "fileSize": 6074784,
+      "mirrored": true
     },
     {
       "id": 4901,
@@ -36817,21 +36900,24 @@
       "kind": "swf",
       "name": "ppets_4903",
       "path": "5f31874f17fd5abfcd9cf2162eb8e963",
-      "fileSize": 5742307
+      "fileSize": 5742307,
+      "mirrored": true
     },
     {
       "id": 4904,
       "kind": "swf",
       "name": "ppets_4904",
       "path": "3804008b8646dc9645ec400e85bd856f",
-      "fileSize": 9818043
+      "fileSize": 9818043,
+      "mirrored": true
     },
     {
       "id": 4905,
       "kind": "swf",
       "name": "ppets_4905",
       "path": "13d3413ddc9991082015e2d7a0f356d2",
-      "fileSize": 5432379
+      "fileSize": 5432379,
+      "mirrored": true
     },
     {
       "id": 4906,
@@ -36852,14 +36938,16 @@
       "kind": "swf",
       "name": "ppets_4908",
       "path": "d4f5e69f16b4aa1d50c8740b61e36700",
-      "fileSize": 13469407
+      "fileSize": 13469407,
+      "mirrored": true
     },
     {
       "id": 4909,
       "kind": "swf",
       "name": "ppets_4909",
       "path": "a35224aded6ca89212ef4bfa8262f24a",
-      "fileSize": 7669080
+      "fileSize": 7669080,
+      "mirrored": true
     },
     {
       "id": 4910,
@@ -36873,14 +36961,16 @@
       "kind": "swf",
       "name": "ppets_4911",
       "path": "622327349f8b0c8ff8e5fb394cab38fa",
-      "fileSize": 16598217
+      "fileSize": 16598217,
+      "mirrored": true
     },
     {
       "id": 4912,
       "kind": "swf",
       "name": "ppets_4912",
       "path": "f136a97ba6124a5eb3391fdcdb5b388f",
-      "fileSize": 14842912
+      "fileSize": 14842912,
+      "mirrored": true
     },
     {
       "id": 4913,
@@ -36915,7 +37005,8 @@
       "kind": "swf",
       "name": "ppets_5000",
       "path": "98757d6cc4fe3ff6dabcc027a86872ec",
-      "fileSize": 12785509
+      "fileSize": 12785509,
+      "mirrored": true
     },
     {
       "id": 5000,
@@ -37938,7 +38029,8 @@
       "kind": "swf",
       "name": "ppets_5771",
       "path": "799dec6215edf0c8c94c24d29657fd90",
-      "fileSize": 6294301
+      "fileSize": 6294301,
+      "mirrored": true
     },
     {
       "id": 5772,
@@ -37987,14 +38079,16 @@
       "kind": "swf",
       "name": "ppets_5797",
       "path": "0da9e6304bf431f41609cd0d45fac979",
-      "fileSize": 12940825
+      "fileSize": 12940825,
+      "mirrored": true
     },
     {
       "id": 5818,
       "kind": "swf",
       "name": "ppets_5818",
       "path": "97e1c058d682a5a75eb9af999835b05a",
-      "fileSize": 15961196
+      "fileSize": 15961196,
+      "mirrored": true
     },
     {
       "id": 5818,
@@ -38002,14 +38096,16 @@
       "name": "ppets_5818_small",
       "path": "7e33e830aab1157344edfe34fc42807a",
       "fileSize": 5362796,
-      "variant": "small"
+      "variant": "small",
+      "mirrored": true
     },
     {
       "id": 5819,
       "kind": "swf",
       "name": "ppets_5819",
       "path": "40401a1568ecf2d12d046b99a7ea2f0e",
-      "fileSize": 19477125
+      "fileSize": 19477125,
+      "mirrored": true
     },
     {
       "id": 5819,
@@ -38017,21 +38113,24 @@
       "name": "ppets_5819_small",
       "path": "cf0345b4284e58edec9ab2dd20d75ecf",
       "fileSize": 6143243,
-      "variant": "small"
+      "variant": "small",
+      "mirrored": true
     },
     {
       "id": 5825,
       "kind": "swf",
       "name": "ppets_5825",
       "path": "0b06930325e4a6aa60beeef8107d5af6",
-      "fileSize": 6161340
+      "fileSize": 6161340,
+      "mirrored": true
     },
     {
       "id": 5826,
       "kind": "swf",
       "name": "ppets_5826",
       "path": "5a88fce873ca8472839fcc29cee8a4f8",
-      "fileSize": 6946249
+      "fileSize": 6946249,
+      "mirrored": true
     },
     {
       "id": 5829,
@@ -38045,7 +38144,8 @@
       "kind": "swf",
       "name": "ppets_5830",
       "path": "c19b0d6a1cb752abbec3c3d3e2f706b4",
-      "fileSize": 11360246
+      "fileSize": 11360246,
+      "mirrored": true
     },
     {
       "id": 5830,
@@ -38060,28 +38160,32 @@
       "kind": "swf",
       "name": "ppets_5831",
       "path": "6395ef56222165670032c7ae8e2ce4b4",
-      "fileSize": 6920358
+      "fileSize": 6920358,
+      "mirrored": true
     },
     {
       "id": 5832,
       "kind": "swf",
       "name": "ppets_5832",
       "path": "49068ee114decd6ad780151a7d27d741",
-      "fileSize": 6534294
+      "fileSize": 6534294,
+      "mirrored": true
     },
     {
       "id": 5833,
       "kind": "swf",
       "name": "ppets_5833",
       "path": "300e8f6fce5126c553e05404e5a77034",
-      "fileSize": 6804859
+      "fileSize": 6804859,
+      "mirrored": true
     },
     {
       "id": 5834,
       "kind": "swf",
       "name": "ppets_5834",
       "path": "eb3604cc89568c629e281a48da491ada",
-      "fileSize": 13306145
+      "fileSize": 13306145,
+      "mirrored": true
     },
     {
       "id": 5834,
