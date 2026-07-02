@@ -6,6 +6,7 @@
     "dev": "pnpm --filter @seer/viewer dev",
     "preview": "pnpm --filter @seer/viewer preview",
     "build:index": "node tools/build-pet-index.mjs",
+    "sync:github-cdn": "node tools/sync-large-bundles-to-github.mjs",
     "build": "pnpm build:index && pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

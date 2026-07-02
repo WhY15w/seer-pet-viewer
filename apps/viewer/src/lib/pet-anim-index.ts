@@ -1,6 +1,9 @@
 export interface PetAnimSharedBundle {
   name: string;
   path: string;
+  fileSize: number;
+  /** ≥5 MB 且已上传至 GitHub 图床 */
+  mirrored?: boolean;
 }
 
 export interface PetAnimIndexEntry {
@@ -9,6 +12,9 @@ export interface PetAnimIndexEntry {
   variant?: "small";
   name: string;
   path: string;
+  fileSize: number;
+  /** ≥5 MB 且已上传至 GitHub 图床 */
+  mirrored?: boolean;
 }
 
 export interface PetAnimIndex {
@@ -33,4 +39,11 @@ async function fetchPetAnimIndex(): Promise<PetAnimIndex> {
 export function loadPetAnimIndex(): Promise<PetAnimIndex> {
   cachedIndex ??= fetchPetAnimIndex();
   return cachedIndex;
+}
+
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

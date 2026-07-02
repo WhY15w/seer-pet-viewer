@@ -18,7 +18,7 @@ import type {
   PetAnimIndexEntry,
   PetAnimSharedBundle,
 } from "../lib/pet-anim-index";
-import { fetchBundleBuffer } from "../lib/remote-bundle";
+import { fetchBundleFromIndex, isRemoteBundleAllowed, remoteBundleBlockedMessage } from "../lib/remote-bundle";
 
 export interface RemoteLoadContext {
   entry: PetAnimIndexEntry;
@@ -165,7 +165,7 @@ export function usePetLoader() {
       throw new Error(`索引中缺少共享材质包 ${SHARED_SWF_MATERIAL_BUNDLE_NAME}`);
     }
 
-    const buffer = await fetchBundleBuffer(shared.path);
+    const buffer = await fetchBundleFromIndex(shared);
     await applyMaterialBundleBuffer(buffer);
     sharedMaterialRemoteLoaded = true;
   }
@@ -174,6 +174,12 @@ export function usePetLoader() {
     entry: PetAnimIndexEntry,
     sharedBundles: PetAnimSharedBundle[],
   ) {
+    if (!isRemoteBundleAllowed(entry)) {
+      error.value = remoteBundleBlockedMessage(entry.fileSize);
+      remoteLoadContext.value = { entry, sharedBundles };
+      return;
+    }
+
     loading.value = true;
     error.value = null;
     warnings.value = [];
@@ -185,7 +191,7 @@ export function usePetLoader() {
         await ensureSharedMaterialLoaded(sharedBundles);
       }
       loadingMessage.value = `正在下载精灵 ${petLabel(entry)}…`;
-      const buffer = await fetchBundleBuffer(entry.path);
+      const buffer = await fetchBundleFromIndex(entry);
       loadingMessage.value = `正在解析精灵 ${petLabel(entry)}…`;
       await parseBundleBuffer(buffer, `${entry.name}.bundle`);
       parseMs.value = Math.round(performance.now() - t0);

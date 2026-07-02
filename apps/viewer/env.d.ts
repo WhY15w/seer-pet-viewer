@@ -3,6 +3,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_BUNDLE_PROXY_PREFIX?: string;
+  /** 大文件 GitHub 图床前缀；留空禁用图床回退 */
+  readonly VITE_LARGE_BUNDLE_CDN_PREFIX?: string;
 }
 
 interface ImportMeta {
