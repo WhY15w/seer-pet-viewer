@@ -15,14 +15,14 @@ import {
   Vector3,
 } from "@esotericsoftware/spine-webgl";
 import type { SpineClipData } from "@seer/spine-bundle";
-import { SPINE_PREVIEW_FPS } from "@seer/spine-bundle";
+import { parseAtlasUsesPma, SPINE_PREVIEW_FPS } from "@seer/spine-bundle";
 import {
-  computeFittedCanvasLayout,
-  finalizeExportPixels,
-  mergeAlphaBounds,
-  planTightExport,
-  PROBE_MAX_SIDE,
-  type PixelRect,
+  capLayoutVertexBounds,
+  computeReferenceScale,
+  EXPORT_PADDING,
+  planReferenceExport,
+  resolveReferenceSequence,
+  tightCropRgbaFrames,
 } from "@seer/anim-export/capture";
 
 export interface SpinePlayerOptions {
@@ -79,6 +79,7 @@ export class SpinePlayer {
   private readonly screenScratch = new Vector3();
   private readonly screenScratch2 = new Vector3();
   private exportSuspended = false;
+  private usesPma = true;
 
   async mount(
     parent: HTMLElement,
@@ -98,9 +99,13 @@ export class SpinePlayer {
     this.context = new ManagedWebGLRenderingContext(this.canvas, {
       alpha: true,
       premultipliedAlpha: true,
+      preserveDrawingBuffer: true,
     });
     this.renderer = new SceneRenderer(this.canvas, this.context);
-    this.renderer.skeletonRenderer.premultipliedAlpha = true;
+    const usesPma = parseAtlasUsesPma(clip.atlasText);
+    this.usesPma = usesPma;
+    this.renderer.skeletonRenderer.premultipliedAlpha = usesPma;
+    GLTexture.DISABLE_UNPACK_PREMULTIPLIED_ALPHA_WEBGL = usesPma;
 
     this.atlas = new TextureAtlas(clip.atlasText);
     for (const page of this.atlas.pages) {
@@ -239,13 +244,25 @@ export class SpinePlayer {
 
     this.exportSuspended = true;
     this.pause();
-    if (savedSequence !== options.sequence) {
+
+    const refName = resolveReferenceSequence(this.clip.animations);
+    const refFrameTotal = this.getSequenceFrameCount(refName);
+    if (refFrameTotal <= 0) return;
+
+    if (savedSequence !== refName) {
+      this.setSequence(refName);
+    }
+    const refScale = computeReferenceScale(
+      this.computeSequenceBounds(refFrameTotal),
+    );
+
+    if (options.sequence !== refName) {
       this.setSequence(options.sequence);
     }
 
     const frameTotal = this.frameCount;
-    const bounds = this.computeSequenceBounds(frameTotal);
-    const pad = 2;
+    const bounds = capLayoutVertexBounds(this.computeSequenceBounds(frameTotal));
+    const layout = planReferenceExport(bounds, refScale, options.scale);
     const transparent = options.background === "transparent";
 
     if (transparent) {
@@ -256,65 +273,48 @@ export class SpinePlayer {
       this.renderWithAlphaClear = false;
     }
 
-    const probeLayout = computeFittedCanvasLayout(bounds, PROBE_MAX_SIDE, pad);
-    this.canvas.width = probeLayout.width;
-    this.canvas.height = probeLayout.height;
-    this.renderer.resize(ResizeMode.Expand);
-    this.applyExportCamera(bounds, probeLayout.width, probeLayout.height, pad);
+    this.syncExportViewport(layout.width, layout.height);
+    this.applyExportCamera(
+      bounds,
+      layout.width,
+      layout.height,
+      EXPORT_PADDING,
+    );
 
-    let alphaUnion: PixelRect | null = null;
+    const rendered: {
+      index: number;
+      pixels: Uint8Array;
+      width: number;
+      height: number;
+    }[] = [];
+
     for (let i = 0; i < frameTotal; i++) {
       this.frameIndex = i;
       this.applyPose(i / SPINE_PREVIEW_FPS);
       this.renderExport();
-      const probePixels = this.readExportPixels(
-        probeLayout.width,
-        probeLayout.height,
-      );
-      alphaUnion = mergeAlphaBounds(
-        probePixels,
-        probeLayout.width,
-        probeLayout.height,
-        alphaUnion,
-        transparent,
-      );
+      const pixels = this.readExportPixels(layout.width, layout.height);
+      rendered.push({
+        index: i,
+        pixels,
+        width: layout.width,
+        height: layout.height,
+      });
     }
 
-    if (!alphaUnion) {
-      throw new Error("未检测到可导出的非透明像素");
+    if (!rendered.length) {
+      throw new Error("未检测到可导出的帧");
     }
 
-    const plan = planTightExport(alphaUnion, probeLayout, options.scale, pad);
-    this.canvas.width = plan.renderLayout.width;
-    this.canvas.height = plan.renderLayout.height;
-    this.renderer.resize(ResizeMode.Expand);
-    this.applyExportCamera(
-      bounds,
-      plan.renderLayout.width,
-      plan.renderLayout.height,
-      pad,
-    );
+    const cropped = tightCropRgbaFrames(rendered);
 
     try {
-      for (let i = 0; i < frameTotal; i++) {
-        this.frameIndex = i;
-        this.applyPose(i / SPINE_PREVIEW_FPS);
-        this.renderExport();
-        const renderPixels = this.readExportPixels(
-          plan.renderLayout.width,
-          plan.renderLayout.height,
-        );
+      for (let i = 0; i < cropped.length; i++) {
+        const frame = cropped[i]!;
         yield {
-          index: i,
-          pixels: finalizeExportPixels(
-            renderPixels,
-            plan.renderLayout.width,
-            plan.renderLayout.height,
-            plan,
-            pad,
-          ),
-          width: plan.exportWidth,
-          height: plan.exportHeight,
+          index: rendered[i]!.index,
+          pixels: frame.pixels,
+          width: frame.width,
+          height: frame.height,
         };
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       }
@@ -493,7 +493,7 @@ export class SpinePlayer {
     this.canvas.width = w;
     this.canvas.height = h;
     this.renderer.resize(ResizeMode.Expand);
-    this.updateCamera(false);
+    this.fitToView();
   }
 
   private emitFrame(): void {
@@ -576,8 +576,17 @@ export class SpinePlayer {
     camera.update();
   }
 
+  /** 导出时固定 backing-store 尺寸；勿用 SceneRenderer.resize（会按 CSS client 尺寸覆盖 canvas） */
+  private syncExportViewport(width: number, height: number): void {
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+    const gl = this.context.gl;
+    gl.viewport(0, 0, width, height);
+    this.renderer.camera.setViewport(width, height);
+  }
+
   private renderExport(): void {
-    this.renderer.resize(ResizeMode.Expand);
+    this.syncExportViewport(this.canvas.width, this.canvas.height);
     const gl = this.context.gl;
     if (this.renderWithAlphaClear) {
       gl.clearColor(0, 0, 0, 0);
@@ -587,7 +596,7 @@ export class SpinePlayer {
     }
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.renderer.begin();
-    this.renderer.drawSkeleton(this.skeleton, true);
+    this.renderer.drawSkeleton(this.skeleton, this.usesPma);
     this.renderer.end();
   }
 
@@ -627,7 +636,7 @@ export class SpinePlayer {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     this.renderer.begin();
-    this.renderer.drawSkeleton(this.skeleton, true);
+    this.renderer.drawSkeleton(this.skeleton, this.usesPma);
     this.renderer.end();
   }
 }

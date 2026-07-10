@@ -188,6 +188,9 @@ function onSelect(entry: PetAnimIndexEntry) {
       <p v-if="truncatedCount > 0" class="pet-picker-truncated">
         还有 {{ truncatedCount }} 条结果，请缩小搜索范围
       </p>
+      <p class="pet-picker-footnote">
+        小于 5 MB 通过同域代理加载；已镜像的大文件从 GitHub 图床（jsDelivr）加载；未镜像的大文件请本地导入。
+      </p>
     </div>
   </section>
 </template>
@@ -309,6 +312,14 @@ function onSelect(entry: PetAnimIndexEntry) {
   padding: 8px 12px;
   font-size: 0.82rem;
   border-top: 1px solid var(--border);
+}
+
+.pet-picker-footnote {
+  margin: 8px 0 0;
+  padding: 0 4px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 .pet-picker-list {

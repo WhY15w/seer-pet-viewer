@@ -32,12 +32,49 @@ pnpm export examples/ppets_70
 
 ```bash
 pnpm build
-# 输出在 apps/viewer/dist，可部署到 GitHub Pages / Cloudflare Pages
+# 输出在 apps/viewer/dist，可部署到 GitHub Pages / Cloudflare Pages / EdgeOne Makers
 ```
 
-### 远程资源与跨域代理
+### EdgeOne Makers 部署（推荐：同域代理）
 
-生产环境浏览器无法直连 `newseer.61.com`（无 CORS 头）。远程加载 bundle 需配置反向代理：
+适合需要中国大陆访问、且希望 bundle 代理与站点同域的场景。根目录 [`edgeone.json`](edgeone.json) 已配置构建命令；[`edge-functions/proxy/[hash].js`](edge-functions/proxy/[hash].js) 提供同域 `/proxy/{hash}` 流式回源。
+
+1. 在 [EdgeOne Makers 控制台](https://console.cloud.tencent.com/edgeone/pages) **导入 Git 仓库**，框架选 Vite 或自定义。
+2. 确认构建配置与 `edgeone.json` 一致：
+   - 安装：`pnpm install`
+   - 构建：`pnpm build:index && pnpm -r build`
+   - 输出目录：`apps/viewer/dist`
+3. 绑定自定义域名（大陆服务建议使用已备案域名，并勾选含中国大陆的加速区域）。
+4. **无需**配置 `VITE_BUNDLE_PROXY_PREFIX`（生产构建默认使用同域 `/proxy`）。
+5. 首次部署后验证：
+   - `/pet-anim-index.json` 可访问
+   - `/proxy/{小文件 hash}` 返回 bundle
+   - `/proxy/{≥5 MB 文件 hash}` 返回 413
+
+远程代理仅转发 **小于 5 MB** 的 bundle；**≥5 MB** 且已上传至 [GitHub 图床](https://github.com/SeerAPI/seer-unity-assets-pet_anim_part) 的条目会从 jsDelivr CDN 直接加载。本地调试 Edge Function 可安装 CLI 后执行 `edgeone makers dev`（可选）。
+
+### GitHub 图床（大文件 ≥5 MB）
+
+大文件存放在 [SeerAPI/seer-unity-assets-pet_anim_part](https://github.com/SeerAPI/seer-unity-assets-pet_anim_part) 的 `newseer/assetbundles/PetAnimPackage/` 目录，按 bundle 名称命名（共享包带 `.bundle` 后缀）。浏览器通过 jsDelivr 拉取（默认前缀见 `VITE_LARGE_BUNDLE_CDN_PREFIX`）。
+
+构建索引时会自动对照图床文件列表，为已镜像的 ≥5 MB 条目打上 `mirrored: true`：
+
+```bash
+pnpm build:index
+```
+
+维护图床（列出缺失、下载到本地 staging）：
+
+```bash
+pnpm sync:github-cdn              # 列出图床缺失的大文件
+pnpm sync:github-cdn -- --download  # 下载缺失文件到 staging/github-cdn/
+```
+
+将下载的文件复制到图床仓库对应目录后提交 push，再重新 `pnpm build:index` 即可在查看器中远程加载。
+
+### 远程资源与跨域代理（Cloudflare 备选）
+
+生产环境浏览器无法直连 `newseer.61.com`（无 CORS 头）。若站点部署在 GitHub Pages 等无法挂载同域 Edge Function 的环境，需配置跨域 Worker 代理：
 
 1. 部署 [workers/bundle-proxy-cloudflare](workers/bundle-proxy-cloudflare) 到 Cloudflare Workers：
    ```bash

@@ -1,7 +1,18 @@
+import type { FitRgbaResult } from "./max-texture-size.js";
+
 export interface AtlasPixels {
   width: number;
   height: number;
   rgba: Uint8ClampedArray;
+}
+
+export interface PreparedAtlasBitmap {
+  bitmap: ImageBitmap;
+  width: number;
+  height: number;
+  originalWidth: number;
+  originalHeight: number;
+  scaled: boolean;
 }
 
 /** unity-js 解码行序与 UnityPy/atlas.png 相反，需翻转为与 swfclip 一致 */
@@ -91,6 +102,22 @@ export function prepareAtlasRgba(
   bleedAtlasEdges(rgba, width, height, 2);
 }
 
+async function prepareAtlasRgbaOnly(
+  rgba: Uint8ClampedArray,
+  width: number,
+  height: number,
+): Promise<FitRgbaResult> {
+  prepareAtlasRgba(rgba, width, height);
+  return {
+    rgba,
+    width,
+    height,
+    scaled: false,
+    originalWidth: width,
+    originalHeight: height,
+  };
+}
+
 export async function rgbaToImageBitmap(
   width: number,
   height: number,
@@ -117,21 +144,45 @@ export async function rgbaToImageBitmap(
 
 export async function atlasPixelsToBitmap(
   pixels: AtlasPixels,
-): Promise<ImageBitmap> {
+): Promise<PreparedAtlasBitmap> {
   const data = new Uint8ClampedArray(pixels.rgba);
-  prepareAtlasRgba(data, pixels.width, pixels.height);
-  return rgbaToImageBitmap(pixels.width, pixels.height, data);
+  const prepared = await prepareAtlasRgbaOnly(data, pixels.width, pixels.height);
+  const bitmap = await rgbaToImageBitmap(
+    prepared.width,
+    prepared.height,
+    prepared.rgba,
+  );
+  return {
+    bitmap,
+    width: prepared.width,
+    height: prepared.height,
+    originalWidth: prepared.originalWidth,
+    originalHeight: prepared.originalHeight,
+    scaled: prepared.scaled,
+  };
 }
 
 export async function prepareAtlasBitmap(
   bitmap: ImageBitmap,
   width: number,
   height: number,
-): Promise<ImageBitmap> {
+): Promise<PreparedAtlasBitmap> {
   const pixels = await readBitmapPixels(bitmap, width, height);
-  prepareAtlasRgba(pixels, width, height);
   bitmap.close?.();
-  return rgbaToImageBitmap(width, height, pixels);
+  const prepared = await prepareAtlasRgbaOnly(pixels, width, height);
+  const result = await rgbaToImageBitmap(
+    prepared.width,
+    prepared.height,
+    prepared.rgba,
+  );
+  return {
+    bitmap: result,
+    width: prepared.width,
+    height: prepared.height,
+    originalWidth: prepared.originalWidth,
+    originalHeight: prepared.originalHeight,
+    scaled: prepared.scaled,
+  };
 }
 
 export async function readBitmapPixels(

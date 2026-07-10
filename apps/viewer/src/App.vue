@@ -21,6 +21,7 @@ const {
   loading,
   error,
   loadingMessage,
+  downloadProgress,
   remoteLoadContext,
   pet,
   parseMs,
@@ -156,6 +157,7 @@ function onRemoteSelect(entry: PetAnimIndexEntry, index: PetAnimIndex) {
         <RemoteLoadNotice
           :loading="loading"
           :loading-message="loadingMessage"
+          :download-progress="downloadProgress"
           :error="error"
           :entry="remoteLoadContext?.entry ?? null"
           :can-retry="!!remoteLoadContext"
@@ -224,6 +226,7 @@ function onRemoteSelect(entry: PetAnimIndexEntry, index: PetAnimIndex) {
 
       <Suspense>
         <PetViewer
+          class="viewer-shell"
           :pet="pet"
           :toolbar-position="effectiveToolbarPosition"
           :is-mobile="isMobile"
@@ -242,8 +245,12 @@ function onRemoteSelect(entry: PetAnimIndexEntry, index: PetAnimIndex) {
 .app {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
   height: 100dvh;
+  height: 100svh;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .dropzone {
@@ -338,6 +345,12 @@ function onRemoteSelect(entry: PetAnimIndexEntry, index: PetAnimIndex) {
 
 .warnings p {
   margin: 2px 0;
+}
+
+.viewer-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {

@@ -96,7 +96,10 @@ export async function parseBundleCore(
             resolver.resolveMaterialRef(m.m_FileID, BigInt(m.m_PathID), i),
           )
         : [NORMAL_MATERIAL];
-      const mesh = buildFrameMesh(frame.MeshData, materials);
+      const materialPathIds = frame.Materials?.length
+        ? frame.Materials.map((m) => String(m.m_PathID))
+        : undefined;
+      const mesh = buildFrameMesh(frame.MeshData, materials, materialPathIds);
       return {
         labels: frame.Labels ?? [],
         mesh,
@@ -124,9 +127,15 @@ export async function parseBundle(
   resolver = new MaterialResolver(),
 ): Promise<SwfClipData> {
   const core = await parseBundleCore(data, fileName, resolver);
-  const atlas = await atlasPixelsToBitmap(core.atlasPixels);
-  const { atlasPixels: _pixels, ...rest } = core;
-  return { ...rest, atlas };
+  const prepared = await atlasPixelsToBitmap(core.atlasPixels);
+  const { atlasPixels: _pixels, materialWarnings, ...rest } = core;
+  return {
+    ...rest,
+    atlas: prepared.bitmap,
+    atlasWidth: prepared.width,
+    atlasHeight: prepared.height,
+    materialWarnings,
+  };
 }
 
 /** 在已加载共享材质后，复用现有图集重新解析 mesh 材质 */

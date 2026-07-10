@@ -18,7 +18,8 @@ import type {
   PetAnimIndexEntry,
   PetAnimSharedBundle,
 } from "../lib/pet-anim-index";
-import { fetchBundleBuffer } from "../lib/remote-bundle";
+import { fetchBundleFromIndex, isRemoteBundleAllowed, remoteBundleBlockedMessage, type DownloadProgress } from "../lib/remote-bundle";
+import { withRuntimeAtlasTileWarning } from "../lib/swf-texture";
 
 export interface RemoteLoadContext {
   entry: PetAnimIndexEntry;
@@ -46,6 +47,7 @@ export function usePetLoader() {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const loadingMessage = ref<string | null>(null);
+  const downloadProgress = ref<DownloadProgress | null>(null);
   const remoteLoadContext = ref<RemoteLoadContext | null>(null);
   const pet = ref<PetClip | null>(null);
   const parseMs = ref(0);
@@ -57,13 +59,25 @@ export function usePetLoader() {
   let lastSwfFileName = "";
   let sharedMaterialRemoteLoaded = false;
 
+  function reportDownloadProgress(progress: DownloadProgress) {
+    downloadProgress.value = progress;
+  }
+
+  function clearDownloadProgress() {
+    downloadProgress.value = null;
+  }
+
   function materialSnapshot() {
     const snapshot = materialResolver.snapshot();
     return Object.keys(snapshot).length > 0 ? snapshot : undefined;
   }
 
-  function buildSwfWarnings(parseWarnings: string[]): string[] {
-    const out = [...parseWarnings];
+  function buildSwfWarnings(parseWarnings: string[], clip: SwfClipData): string[] {
+    const out = withRuntimeAtlasTileWarning(
+      parseWarnings,
+      clip.atlasWidth,
+      clip.atlasHeight,
+    );
     if (materialCount.value > 0) {
       out.unshift(`已加载 ${materialCount.value} 个 SWF 共享材质`);
     } else if (parseWarnings.some((w) => w.includes("外部文件"))) {
@@ -97,7 +111,7 @@ export function usePetLoader() {
         materialSnapshot(),
       );
       pet.value = { type: "swf", clip };
-      warnings.value = buildSwfWarnings(clip.materialWarnings);
+      warnings.value = buildSwfWarnings(clip.materialWarnings, clip);
     }
   }
 
@@ -118,6 +132,7 @@ export function usePetLoader() {
     } finally {
       loading.value = false;
       loadingMessage.value = null;
+      clearDownloadProgress();
     }
   }
 
@@ -139,11 +154,15 @@ export function usePetLoader() {
         pet.value.clip.atlas,
       );
       pet.value = { type: "swf", clip };
-      warnings.value = [
-        `已导入 ${count} 个 SWF 共享材质，并已重新解析当前精灵`,
-        ...w,
-        ...clip.materialWarnings,
-      ];
+      warnings.value = withRuntimeAtlasTileWarning(
+        [
+          `已导入 ${count} 个 SWF 共享材质，并已重新解析当前精灵`,
+          ...w,
+          ...clip.materialWarnings,
+        ],
+        clip.atlasWidth,
+        clip.atlasHeight,
+      );
     } else {
       warnings.value = [
         `已导入 ${count} 个 SWF 共享材质，导入 ppets_* bundle 后将自动应用`,
@@ -165,7 +184,9 @@ export function usePetLoader() {
       throw new Error(`索引中缺少共享材质包 ${SHARED_SWF_MATERIAL_BUNDLE_NAME}`);
     }
 
-    const buffer = await fetchBundleBuffer(shared.path);
+    const buffer = await fetchBundleFromIndex(shared, {
+      onProgress: reportDownloadProgress,
+    });
     await applyMaterialBundleBuffer(buffer);
     sharedMaterialRemoteLoaded = true;
   }
@@ -174,18 +195,29 @@ export function usePetLoader() {
     entry: PetAnimIndexEntry,
     sharedBundles: PetAnimSharedBundle[],
   ) {
+    if (!isRemoteBundleAllowed(entry)) {
+      error.value = remoteBundleBlockedMessage(entry.fileSize);
+      remoteLoadContext.value = { entry, sharedBundles };
+      return;
+    }
+
     loading.value = true;
     error.value = null;
     warnings.value = [];
     remoteLoadContext.value = { entry, sharedBundles };
+    clearDownloadProgress();
     const t0 = performance.now();
     try {
       if (entry.kind === "swf") {
         loadingMessage.value = `正在下载 SWF 共享材质…`;
         await ensureSharedMaterialLoaded(sharedBundles);
+        clearDownloadProgress();
       }
       loadingMessage.value = `正在下载精灵 ${petLabel(entry)}…`;
-      const buffer = await fetchBundleBuffer(entry.path);
+      const buffer = await fetchBundleFromIndex(entry, {
+        onProgress: reportDownloadProgress,
+      });
+      clearDownloadProgress();
       loadingMessage.value = `正在解析精灵 ${petLabel(entry)}…`;
       await parseBundleBuffer(buffer, `${entry.name}.bundle`);
       parseMs.value = Math.round(performance.now() - t0);
@@ -196,6 +228,7 @@ export function usePetLoader() {
     } finally {
       loading.value = false;
       loadingMessage.value = null;
+      clearDownloadProgress();
     }
   }
 
@@ -226,7 +259,11 @@ export function usePetLoader() {
       const meta = JSON.parse(await metaFile.text()) as SwfClipJson;
       const data = await loadSwfClipPackage(meta, atlasFile);
       pet.value = { type: "swf", clip: data };
-      warnings.value = data.materialWarnings;
+      warnings.value = withRuntimeAtlasTileWarning(
+        data.materialWarnings,
+        data.atlasWidth,
+        data.atlasHeight,
+      );
       parseMs.value = Math.round(performance.now() - t0);
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
@@ -304,6 +341,7 @@ export function usePetLoader() {
     error.value = null;
     remoteLoadContext.value = null;
     loadingMessage.value = null;
+    clearDownloadProgress();
     warnings.value = [];
     parseMs.value = 0;
     lastSwfBuffer = null;
@@ -314,6 +352,7 @@ export function usePetLoader() {
     loading,
     error,
     loadingMessage,
+    downloadProgress,
     remoteLoadContext,
     pet,
     parseMs,

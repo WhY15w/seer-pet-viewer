@@ -38,38 +38,53 @@ function classifyBundleName(bundleName) {
   return { type: "skip", name };
 }
 
+const REMOTE_BUNDLE_MAX_BYTES = 5 * 1024 * 1024;
+
 /**
- * @param {{ packageVersion: string; bundles: Array<{ bundleName: string; fileHash: string }> }} manifest
+ * @param {{ packageVersion: string; bundles: Array<{ bundleName: string; fileHash: string; fileSize: bigint }> }} manifest
+ * @param {{ mirroredNames?: Set<string> }} [options]
  */
-export function buildPetAnimIndex(manifest) {
-  /** @type {Array<{ name: string; path: string }>} */
+export function buildPetAnimIndex(manifest, options = {}) {
+  const mirroredNames = options.mirroredNames ?? new Set();
+
+  /** @type {Array<{ name: string; path: string; fileSize: number; mirrored?: boolean }>} */
   const sharedBundles = [];
-  /** @type {Array<{ id: number; kind: string; variant?: string; name: string; path: string }>} */
+  /** @type {Array<{ id: number; kind: string; variant?: string; name: string; path: string; fileSize: number; mirrored?: boolean }>} */
   const entries = [];
 
   for (const bundle of manifest.bundles) {
     const classified = classifyBundleName(bundle.bundleName);
     const path = bundle.fileHash;
+    const fileSize = Number(bundle.fileSize);
 
     if (!/^[a-f0-9]{32}$/.test(path)) {
       throw new Error(`无效的 bundle hash: ${path} (${bundle.bundleName})`);
     }
 
     if (classified.type === "shared") {
-      sharedBundles.push({ name: classified.name, path });
+      /** @type {{ name: string; path: string; fileSize: number; mirrored?: boolean }} */
+      const shared = { name: classified.name, path, fileSize };
+      if (fileSize >= REMOTE_BUNDLE_MAX_BYTES && mirroredNames.has(classified.name)) {
+        shared.mirrored = true;
+      }
+      sharedBundles.push(shared);
       continue;
     }
 
     if (classified.type === "entry") {
-      /** @type {{ id: number; kind: string; variant?: string; name: string; path: string }} */
+      /** @type {{ id: number; kind: string; variant?: string; name: string; path: string; fileSize: number; mirrored?: boolean }} */
       const entry = {
         id: classified.id,
         kind: classified.kind,
         name: classified.name,
         path,
+        fileSize,
       };
       if (classified.variant) {
         entry.variant = classified.variant;
+      }
+      if (fileSize >= REMOTE_BUNDLE_MAX_BYTES && mirroredNames.has(classified.name)) {
+        entry.mirrored = true;
       }
       entries.push(entry);
     }
